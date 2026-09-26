@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Roboto,system-ui,sans-serif;background:#0d0c0e;min-height:100vh;display:grid;place-items:center;padding:24px}
+  a{color:var(--primary);text-decoration:none}
+  a:hover{opacity:.85}
+  [data-app]{--surface:#141316;--sc-low:#1c1b1e;--sc:#211f23;--sc-high:#2b292e;--sc-highest:#363239;--on-surface:#e6e1e6;--on-surface-variant:#cac4cf;--outline:#948f99;--outline-variant:#48454e;--error:#FFB4AB;--scrim:rgba(0,0,0,.6);--fav:#F38282;--primary:#FFB1C7;--on-primary:#54182F;--primary-container:#6F3046;--on-primary-container:#FFD9E2;--secondary-container:#5A3F46;--on-secondary-container:#FFD9E2}
+  [data-theme="dark"]{--surface:#141316;--sc-low:#1c1b1e;--sc:#211f23;--sc-high:#2b292e;--sc-highest:#363239;--on-surface:#e6e1e6;--on-surface-variant:#cac4cf;--outline:#948f99;--outline-variant:#48454e;--error:#FFB4AB;--scrim:rgba(0,0,0,.6)}
+  [data-theme="light"]{--surface:#fdfbff;--sc-low:#f5f0f7;--sc:#efe9f1;--sc-high:#e9e3ec;--sc-highest:#e3dde6;--on-surface:#1c1b1e;--on-surface-variant:#48454e;--outline:#79767d;--outline-variant:#c9c5cf;--error:#BA1A1A;--scrim:rgba(0,0,0,.4)}
+  [data-theme="dark"][data-amoled="on"]{--surface:#000000;--sc-low:#080809;--sc:#0e0e10;--sc-high:#161618;--sc-highest:#202024}
+  [data-accent="rose"][data-theme="dark"]{--primary:#FFB1C7;--on-primary:#54182F;--primary-container:#6F3046;--on-primary-container:#FFD9E2;--secondary-container:#5A3F46;--on-secondary-container:#FFD9E2}
+  [data-accent="rose"][data-theme="light"]{--primary:#8C4A60;--on-primary:#ffffff;--primary-container:#FFD9E2;--on-primary-container:#3B0721;--secondary-container:#FFD9E2;--on-secondary-container:#2B151C}
+  [data-accent="lavender"][data-theme="dark"]{--primary:#D0BCFF;--on-primary:#381E72;--primary-container:#4F378B;--on-primary-container:#EADDFF;--secondary-container:#4A4458;--on-secondary-container:#E8DEF8}
+  [data-accent="lavender"][data-theme="light"]{--primary:#6750A4;--on-primary:#ffffff;--primary-container:#EADDFF;--on-primary-container:#21005D;--secondary-container:#E8DEF8;--on-secondary-container:#1D192B}
+  [data-accent="mint"][data-theme="dark"]{--primary:#6FDBA8;--on-primary:#00391F;--primary-container:#005230;--on-primary-container:#8FF8C4;--secondary-container:#3C4B41;--on-secondary-container:#B9CCBE}
+  [data-accent="mint"][data-theme="light"]{--primary:#006D43;--on-primary:#ffffff;--primary-container:#8FF8C4;--on-primary-container:#00210F;--secondary-container:#D5E8D8;--on-secondary-container:#0F1F13}
+  [data-accent="peach"][data-theme="dark"]{--primary:#FFB68C;--on-primary:#532200;--primary-container:#713600;--on-primary-container:#FFDBC8;--secondary-container:#5A4034;--on-secondary-container:#FFDBC8}
+  [data-accent="peach"][data-theme="light"]{--primary:#8F4C00;--on-primary:#ffffff;--primary-container:#FFDBC8;--on-primary-container:#2E1500;--secondary-container:#F5DED0;--on-secondary-container:#2B1709}
+  [data-accent="sky"][data-theme="dark"]{--primary:#8CCEFF;--on-primary:#00344F;--primary-container:#004B6F;--on-primary-container:#CBE6FF;--secondary-container:#3C4858;--on-secondary-container:#D3E4F5}
+  [data-accent="sky"][data-theme="light"]{--primary:#00639B;--on-primary:#ffffff;--primary-container:#CBE6FF;--on-primary-container:#001D33;--secondary-container:#D3E4F5;--on-secondary-container:#0C1D2E}
+  [data-accent="sand"][data-theme="dark"]{--primary:#E4C36C;--on-primary:#3D2F00;--primary-container:#584400;--on-primary-container:#FFE08C;--secondary-container:#4E4739;--on-secondary-container:#EFE0C0}
+  [data-accent="sand"][data-theme="light"]{--primary:#6F5D00;--on-primary:#ffffff;--primary-container:#FEE08C;--on-primary-container:#221B00;--secondary-container:#EAE2CE;--on-secondary-container:#211B08}
+  .rg-scroll::-webkit-scrollbar{width:0;height:0}
+  @keyframes rgSnack{from{transform:translateY(80px);opacity:0}to{transform:translateY(0);opacity:1}}
+</style>
+</helmet>
+<div data-app data-theme="{{ theme }}" data-accent="{{ accent }}" data-amoled="{{ amoledAttr }}" style="width:412px;height:852px;position:relative;background:var(--surface);color:var(--on-surface);border-radius:36px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.04);display:flex;flex-direction:column;transition:background .25s,color .25s">
+
+  <div class="rg-scroll" style="flex:1;overflow-y:auto;overflow-x:hidden">
+
+    <!-- ============ GALLERY ============ -->
+    <sc-if value="{{ showGallery }}" hint-placeholder-val="{{ true }}">
+    <div style="padding:14px 8px 96px">
+      <div style="display:flex;align-items:center;gap:2px;padding:10px 10px 14px">
+        <div style="flex:1;font-size:22px;font-weight:500;letter-spacing:.1px;padding-left:6px">Gallery</div>
+        <button onClick="{{ toggleGridMode }}" title="Swipe / Scroll" style="width:44px;height:44px;border:none;background:transparent;color:var(--on-surface-variant);border-radius:22px;cursor:pointer;display:grid;place-items:center">
+          <span style="font-family:'Material Symbols Rounded';font-size:24px">{{ gridModeIcon }}</span>
+        </button>
+        <button onClick="{{ cycleColumns }}" title="Density" style="width:44px;height:44px;border:none;background:transparent;color:var(--on-surface-variant);border-radius:22px;cursor:pointer;display:grid;place-items:center">
+          <span style="font-family:'Material Symbols Rounded';font-size:24px">grid_view</span>
+        </button>
+        <button onClick="{{ shuffle }}" title="Shuffle" style="width:44px;height:44px;border:none;background:var(--primary-container);color:var(--on-primary-container);border-radius:22px;cursor:pointer;display:grid;place-items:center">
+          <span style="font-family:'Material Symbols Rounded';font-size:22px">shuffle</span>
+        </button>
+      </div>
+      <sc-if value="{{ noFolders }}" hint-placeholder-val="{{ false }}"><dc-import name="Empty" on-select="{{ goSettings }}" hint-size="100%,420px"></dc-import></sc-if>
+      <sc-if value="{{ galleryEmptyTypes }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:70px 40px;text-align:center;color:var(--on-surface-variant);font-size:14px;line-height:1.5">No media of the selected file types. Adjust File Types in settings.</div>
+      </sc-if>
+      <sc-if value="{{ showGrid }}" hint-placeholder-val="{{ true }}">
+        <div onPointerDown="{{ gridDown }}" onPointerMove="{{ gridMove }}" onPointerUp="{{ gridUp }}" style="display:grid;gap:4px;grid-template-columns:repeat({{ columns }},1fr);padding:0 6px;touch-action:pan-y">
+          <sc-for list="{{ galleryImages }}" as="img" hint-placeholder-count="12">
+            <div onClick="{{ img.tap }}" onPointerDown="{{ img.down }}" onPointerUp="{{ img.up }}" style="position:relative;aspect-ratio:1;background:var(--sc-high);border-radius:6px;overflow:hidden;cursor:pointer;display:grid;place-items:center;box-shadow:{{ img.ring }}">
+              <span style="font-family:'Material Symbols Rounded';font-size:30px;color:var(--outline-variant);font-variation-settings:'FILL' 1">image</span>
+              <sc-if value="{{ img.selected }}" hint-placeholder-val="{{ false }}">
+                <span style="position:absolute;top:4px;left:4px;font-family:'Material Symbols Rounded';font-size:22px;color:var(--primary);font-variation-settings:'FILL' 1;background:var(--surface);border-radius:50%">check_circle</span>
+              </sc-if>
+              <sc-if value="{{ img.fav }}" hint-placeholder-val="{{ false }}">
+                <span style="position:absolute;top:5px;right:5px;font-family:'Material Symbols Rounded';font-size:19px;color:var(--fav);font-variation-settings:'FILL' 1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))">favorite</span>
+              </sc-if>
+              <sc-if value="{{ img.badge }}" hint-placeholder-val="{{ false }}">
+                <span style="position:absolute;bottom:5px;right:5px;font-family:'Material Symbols Rounded';font-size:19px;color:#fff;font-variation-settings:'FILL' 1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))">{{ img.badge }}</span>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+        <div style="text-align:center;color:var(--on-surface-variant);font-size:12px;padding:16px 0 0;opacity:.7">{{ gridHint }}</div>
+      </sc-if>
+    </div>
+    </sc-if>
+
+    <!-- ============ FAVOURITES ============ -->
+    <sc-if value="{{ showFav }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:14px 8px 96px">
+      <div style="display:flex;align-items:center;gap:6px;padding:10px 12px 14px">
+        <div style="flex:1;font-size:22px;font-weight:500;letter-spacing:.1px;padding-left:6px">Favourites</div>
+        <button onClick="{{ toggleFavTypeMenu }}" style="height:36px;padding:0 12px;border:1px solid var(--outline-variant);background:var(--sc-high);color:var(--on-surface);border-radius:18px;cursor:pointer;font-family:Roboto;font-size:13px;font-weight:500;display:flex;align-items:center;gap:5px">
+          <span style="font-family:'Material Symbols Rounded';font-size:18px">filter_list</span>{{ favTypeLabel }}
+        </button>
+        <button onClick="{{ cycleFavWindow }}" style="height:36px;padding:0 12px;border:1px solid var(--outline-variant);background:var(--sc-high);color:var(--on-surface);border-radius:18px;cursor:pointer;font-family:Roboto;font-size:13px;font-weight:500;display:flex;align-items:center;gap:5px">
+          <span style="font-family:'Material Symbols Rounded';font-size:18px">calendar_month</span>{{ favWindowLabel }}
+        </button>
+      </div>
+      <sc-if value="{{ noFolders }}" hint-placeholder-val="{{ false }}"><dc-import name="Empty" on-select="{{ goSettings }}" hint-size="100%,420px"></dc-import></sc-if>
+      <sc-if value="{{ favEmpty }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:70px 40px 40px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:16px">
+          <div style="width:104px;height:104px;border-radius:52px;background:var(--sc-high);display:grid;place-items:center">
+            <span style="font-family:'Material Symbols Rounded';font-size:52px;color:var(--outline)">favorite</span>
+          </div>
+          <div style="font-size:18px;font-weight:500">Nothing here yet</div>
+          <div style="font-size:14px;color:var(--on-surface-variant);line-height:1.5;max-width:250px">Double-tap a photo in the gallery to add it, or loosen the filters above.</div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ favHas }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid;gap:4px;grid-template-columns:repeat({{ columns }},1fr);padding:0 6px">
+          <sc-for list="{{ favImages }}" as="img" hint-placeholder-count="6">
+            <div onClick="{{ img.tap }}" onPointerDown="{{ img.down }}" onPointerUp="{{ img.up }}" style="position:relative;aspect-ratio:1;background:var(--sc-high);border-radius:6px;overflow:hidden;cursor:pointer;display:grid;place-items:center;box-shadow:{{ img.ring }}">
+              <span style="font-family:'Material Symbols Rounded';font-size:30px;color:var(--outline-variant);font-variation-settings:'FILL' 1">image</span>
+              <sc-if value="{{ img.selected }}" hint-placeholder-val="{{ false }}">
+                <span style="position:absolute;top:4px;left:4px;font-family:'Material Symbols Rounded';font-size:22px;color:var(--primary);font-variation-settings:'FILL' 1;background:var(--surface);border-radius:50%">check_circle</span>
+              </sc-if>
+              <span style="position:absolute;top:5px;right:5px;font-family:'Material Symbols Rounded';font-size:19px;color:var(--fav);font-variation-settings:'FILL' 1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))">favorite</span>
+              <sc-if value="{{ img.badge }}" hint-placeholder-val="{{ false }}">
+                <span style="position:absolute;bottom:5px;right:5px;font-family:'Material Symbols Rounded';font-size:19px;color:#fff;font-variation-settings:'FILL' 1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))">{{ img.badge }}</span>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+    </sc-if>
+
+    <!-- ============ RECENT ============ -->
+    <sc-if value="{{ showRecent }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:14px 8px 96px">
+      <div style="display:flex;align-items:center;padding:10px 12px 14px">
+        <div style="flex:1;font-size:22px;font-weight:500;letter-spacing:.1px;padding-left:8px">Recent</div>
+        <button onClick="{{ cycleWindow }}" style="height:36px;padding:0 16px;border:1px solid var(--outline-variant);background:var(--sc-high);color:var(--on-surface);border-radius:18px;cursor:pointer;font-family:Roboto;font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px">
+          <span style="font-family:'Material Symbols Rounded';font-size:18px">calendar_month</span>{{ recentLabel }}
+        </button>
+      </div>
+      <sc-if value="{{ noFolders }}" hint-placeholder-val="{{ false }}"><dc-import name="Empty" on-select="{{ goSettings }}" hint-size="100%,420px"></dc-import></sc-if>
+      <sc-if value="{{ recentEmpty }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:120px 40px 40px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:16px">
+          <div style="width:104px;height:104px;border-radius:52px;background:var(--sc-high);display:grid;place-items:center">
+            <span style="font-family:'Material Symbols Rounded';font-size:52px;color:var(--outline)">history_toggle_off</span>
+          </div>
+          <div style="font-size:15px;color:var(--on-surface-variant);line-height:1.5;max-width:270px">No recently added files found in the selected paths</div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ recentHas }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid;gap:4px;grid-template-columns:repeat({{ columns }},1fr);padding:0 6px">
+          <sc-for list="{{ recentImages }}" as="img" hint-placeholder-count="9">
+            <div onClick="{{ img.tap }}" onPointerDown="{{ img.down }}" onPointerUp="{{ img.up }}" style="position:relative;aspect-ratio:1;background:var(--sc-high);border-radius:6px;overflow:hidden;cursor:pointer;display:grid;place-items:center;box-shadow:{{ img.ring }}">
+              <span style="font-family:'Material Symbols Rounded';font-size:30px;color:var(--outline-variant);font-variation-settings:'FILL' 1">image</span>
+              <sc-if value="{{ img.selected }}" hint-placeholder-val="{{ false }}">
+                <span style="position:absolute;top:4px;left:4px;font-family:'Material Symbols Rounded';font-size:22px;color:var(--primary);font-variation-settings:'FILL' 1;background:var(--surface);border-radius:50%">check_circle</span>
+              </sc-if>
+              <sc-if value="{{ img.fav }}" hint-placeholder-val="{{ false }}">
+                <span style="position:absolute;top:5px;right:5px;font-family:'Material Symbols Rounded';font-size:19px;color:var(--fav);font-variation-settings:'FILL' 1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))">favorite</span>
+              </sc-if>
+              <sc-if value="{{ img.badge }}" hint-placeholder-val="{{ false }}">
+                <span style="position:absolute;bottom:5px;right:5px;font-family:'Material Symbols Rounded';font-size:19px;color:#fff;font-variation-settings:'FILL' 1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))">{{ img.badge }}</span>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+    </sc-if>
+
+    <!-- ============ MULTI-VIDEO ============ -->
+    <sc-if value="{{ showMulti }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:14px 12px 96px">
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 4px 14px">
+        <div style="flex:1;font-size:22px;font-weight:500;letter-spacing:.1px">Multi-Video</div>
+        <button onClick="{{ mvToggleLandscape }}" title="Landscape" style="width:44px;height:44px;border:none;background:transparent;color:var(--on-surface-variant);border-radius:22px;cursor:pointer;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:24px">screen_rotation</span></button>
+        <div style="display:flex;background:var(--sc-high);border-radius:20px;padding:3px">
+          <sc-for list="{{ mvCountOptions }}" as="o" hint-placeholder-count="3">
+            <button onClick="{{ o.select }}" style="border:none;cursor:pointer;font-family:Roboto;font-size:13px;font-weight:600;width:40px;height:32px;border-radius:16px;background:{{ o.bg }};color:{{ o.color }}">{{ o.label }}</button>
+          </sc-for>
+        </div>
+      </div>
+      <sc-if value="{{ noFolders }}" hint-placeholder-val="{{ false }}"><dc-import name="Empty" on-select="{{ goSettings }}" hint-size="100%,420px"></dc-import></sc-if>
+      <sc-if value="{{ hasFolders }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <button onClick="{{ mvPlayAll }}" style="flex:1;height:40px;border:none;border-radius:20px;background:var(--primary-container);color:var(--on-primary-container);font-family:Roboto;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px"><span style="font-family:'Material Symbols Rounded';font-size:18px">play_arrow</span>Play all</button>
+          <button onClick="{{ mvPauseAll }}" style="flex:1;height:40px;border:1px solid var(--outline-variant);border-radius:20px;background:transparent;color:var(--on-surface);font-family:Roboto;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px"><span style="font-family:'Material Symbols Rounded';font-size:18px">pause</span>Pause all</button>
+          <button onClick="{{ mvMuteAll }}" style="width:44px;height:40px;border:1px solid var(--outline-variant);border-radius:20px;background:transparent;color:var(--on-surface);cursor:pointer;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:20px">{{ mvMuteAllIcon }}</span></button>
+        </div>
+        <div style="display:grid;gap:14px;grid-template-columns:repeat({{ mvCols }},1fr)">
+          <sc-for list="{{ mvCells }}" as="c" hint-placeholder-count="2">
+            <div style="background:var(--sc-high);border-radius:14px;overflow:hidden">
+              <div onClick="{{ c.tapArea }}" style="position:relative;aspect-ratio:16/9;background:linear-gradient(145deg,#2a2a30,#101012);display:grid;place-items:center;cursor:pointer">
+                <sc-if value="{{ c.empty }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--on-surface-variant)"><span style="font-family:'Material Symbols Rounded';font-size:34px">add_to_queue</span><span style="font-size:12px">Choose video</span></div>
+                </sc-if>
+                <sc-if value="{{ c.showOverlay }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-family:'Material Symbols Rounded';font-size:44px;color:rgba(255,255,255,.5);font-variation-settings:'FILL' 1">{{ c.bigIcon }}</span>
+                  <span style="position:absolute;top:8px;left:8px;font-size:11px;color:#fff;background:rgba(0,0,0,.5);padding:2px 8px;border-radius:8px">{{ c.label }}</span>
+                  <sc-if value="{{ c.muted }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:8px;right:8px;font-family:'Material Symbols Rounded';font-size:18px;color:#fff">volume_off</span></sc-if>
+                </sc-if>
+              </div>
+              <sc-if value="{{ c.showControls }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;align-items:center;gap:8px;padding:8px 10px">
+                <span onClick="{{ c.togglePlay }}" style="font-family:'Material Symbols Rounded';font-size:22px;color:var(--on-surface);cursor:pointer">{{ c.playIcon }}</span>
+                <span onClick="{{ c.toggleMute }}" style="font-family:'Material Symbols Rounded';font-size:22px;color:var(--on-surface-variant);cursor:pointer">{{ c.muteIcon }}</span>
+                <div style="flex:1;height:4px;border-radius:2px;background:var(--sc-highest);overflow:hidden"><div style="height:100%;width:{{ c.prog }};background:var(--primary)"></div></div>
+                <span onClick="{{ c.choose }}" title="Change video" style="font-family:'Material Symbols Rounded';font-size:22px;color:var(--on-surface-variant);cursor:pointer">movie</span>
+              </div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+    </sc-if>
+
+    <!-- ============ ALBUM (MAIN) ============ -->
+    <sc-if value="{{ showAlbumMain }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:14px 16px 96px">
+      <div style="padding:10px 4px 16px;font-size:22px;font-weight:500;letter-spacing:.1px">Albums</div>
+      <sc-if value="{{ noFolders }}" hint-placeholder-val="{{ false }}"><dc-import name="Empty" on-select="{{ goSettings }}" hint-size="100%,420px"></dc-import></sc-if>
+      <div style="display:grid;gap:16px;grid-template-columns:1fr 1fr">
+        <sc-for list="{{ albums }}" as="a" hint-placeholder-count="4">
+          <div onClick="{{ a.open }}" style="cursor:pointer;display:flex;flex-direction:column;gap:8px">
+            <div style="aspect-ratio:1;background:var(--sc-high);border-radius:16px;display:grid;place-items:center;overflow:hidden;position:relative">
+              <span style="font-family:'Material Symbols Rounded';font-size:40px;color:var(--outline-variant);font-variation-settings:'FILL' 1">photo_library</span>
+              <span style="position:absolute;bottom:8px;right:10px;font-size:12px;color:#fff;background:rgba(0,0,0,.5);padding:2px 8px;border-radius:10px">{{ a.count }}</span>
+            </div>
+            <div style="font-size:14px;font-weight:500;padding:0 2px">{{ a.name }}</div>
+            <div style="font-size:11px;color:var(--on-surface-variant);padding:0 2px;word-break:break-all">{{ a.path }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ============ ALBUM (DETAIL) ============ -->
+    <sc-if value="{{ showAlbumDetail }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:8px 8px 96px">
+      <div style="display:flex;align-items:center;gap:6px;padding:6px 4px 12px">
+        <button onClick="{{ closeAlbum }}" style="width:44px;height:44px;border:none;background:transparent;color:var(--on-surface);border-radius:22px;cursor:pointer;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:24px">arrow_back</span></button>
+        <div style="flex:1"><div style="font-size:20px;font-weight:500">{{ albumName }}</div><div style="font-size:12px;color:var(--on-surface-variant)">{{ albumCount }} items</div></div>
+        <button onClick="{{ shuffle }}" title="Shuffle" style="width:44px;height:44px;border:none;background:var(--primary-container);color:var(--on-primary-container);border-radius:22px;cursor:pointer;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">shuffle</span></button>
+      </div>
+      <sc-if value="{{ albumEmpty }}" hint-placeholder-val="{{ false }}"><div style="padding:80px 40px;text-align:center;color:var(--on-surface-variant);font-size:14px">This album has no media in the selected file types.</div></sc-if>
+      <div style="display:grid;gap:4px;grid-template-columns:repeat({{ columns }},1fr);padding:0 6px">
+        <sc-for list="{{ albumImages }}" as="img" hint-placeholder-count="9">
+          <div onClick="{{ img.tap }}" onPointerDown="{{ img.down }}" onPointerUp="{{ img.up }}" style="position:relative;aspect-ratio:1;background:var(--sc-high);border-radius:6px;overflow:hidden;cursor:pointer;display:grid;place-items:center;box-shadow:{{ img.ring }}">
+            <span style="font-family:'Material Symbols Rounded';font-size:30px;color:var(--outline-variant);font-variation-settings:'FILL' 1">image</span>
+            <sc-if value="{{ img.selected }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:4px;left:4px;font-family:'Material Symbols Rounded';font-size:22px;color:var(--primary);font-variation-settings:'FILL' 1;background:var(--surface);border-radius:50%">check_circle</span></sc-if>
+            <sc-if value="{{ img.fav }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:5px;right:5px;font-family:'Material Symbols Rounded';font-size:19px;color:var(--fav);font-variation-settings:'FILL' 1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))">favorite</span></sc-if>
+            <sc-if value="{{ img.badge }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;bottom:5px;right:5px;font-family:'Material Symbols Rounded';font-size:19px;color:#fff;font-variation-settings:'FILL' 1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))">{{ img.badge }}</span></sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ============ SETTINGS / MORE ============ -->
+    <sc-if value="{{ showSettings }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:20px 20px 100px">
+      <div style="text-align:center;font-size:26px;font-weight:700;color:var(--primary);letter-spacing:.2px;margin:6px 0 20px">My Random Gallery</div>
+
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:26px">
+        <sc-for list="{{ hints }}" as="h" hint-placeholder-count="5">
+          <div style="display:flex;align-items:center;gap:14px;background:var(--sc);border-radius:16px;padding:14px 16px">
+            <span style="font-family:'Material Symbols Rounded';font-size:24px;color:var(--primary)">{{ h.icon }}</span>
+            <span style="font-size:14px;color:var(--on-surface-variant)">{{ h.text }}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <!-- Appearance -->
+      <div style="font-size:20px;font-weight:500;color:var(--primary);margin:0 4px 8px">Appearance</div>
+      <div style="background:var(--sc-low);border-radius:20px;overflow:hidden;margin-bottom:26px">
+        <div onClick="{{ toggleDark }}" style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;cursor:pointer;gap:16px">
+          <span style="font-size:15px">Enable Dark Mode</span>
+          <div style="width:52px;height:32px;border-radius:16px;background:{{ darkSw.trackBg }};border:2px solid {{ darkSw.trackBorder }};position:relative;flex:none">
+            <div style="position:absolute;top:50%;left:{{ darkSw.knobX }};transform:translateY(-50%);width:{{ darkSw.knobSize }};height:{{ darkSw.knobSize }};border-radius:50%;background:{{ darkSw.knobBg }};transition:all .2s"></div>
+          </div>
+        </div>
+        <div onClick="{{ toggleAmoled }}" style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;cursor:pointer;gap:16px;border-top:1px solid var(--outline-variant)">
+          <div><div style="font-size:15px">AMOLED Black</div><div style="font-size:12px;color:var(--on-surface-variant);margin-top:2px">Pure-black surfaces in dark mode</div></div>
+          <div style="width:52px;height:32px;border-radius:16px;background:{{ amoledSw.trackBg }};border:2px solid {{ amoledSw.trackBorder }};position:relative;flex:none">
+            <div style="position:absolute;top:50%;left:{{ amoledSw.knobX }};transform:translateY(-50%);width:{{ amoledSw.knobSize }};height:{{ amoledSw.knobSize }};border-radius:50%;background:{{ amoledSw.knobBg }};transition:all .2s"></div>
+          </div>
+        </div>
+        <div style="padding:16px 18px;border-top:1px solid var(--outline-variant)">
+          <div style="font-size:13px;color:var(--on-surface-variant);margin-bottom:14px">Accent color</div>
+          <div style="display:flex;gap:14px;flex-wrap:wrap">
+            <sc-for list="{{ accentList }}" as="a" hint-placeholder-count="6">
+              <div onClick="{{ a.select }}" style="display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer">
+                <div style="width:40px;height:40px;border-radius:20px;background:{{ a.color }};border:{{ a.border }};display:grid;place-items:center">
+                  <span style="font-family:'Material Symbols Rounded';font-size:22px;color:#00000088;font-variation-settings:'FILL' 1;opacity:{{ a.checkOpacity }}">check</span>
+                </div>
+                <span style="font-size:11px;color:var(--on-surface-variant)">{{ a.label }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs & Layout -->
+      <div style="font-size:20px;font-weight:500;color:var(--primary);margin:0 4px 8px">Tabs &amp; Layout</div>
+      <div style="background:var(--sc-low);border-radius:20px;overflow:hidden;margin-bottom:10px">
+        <div onClick="{{ toggleMvFeature }}" style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;cursor:pointer;gap:16px">
+          <div style="display:flex;align-items:center;gap:12px"><span style="font-family:'Material Symbols Rounded';font-size:22px;color:var(--primary)">video_library</span><div><div style="font-size:15px">Multi-Video tab</div><div style="font-size:12px;color:var(--on-surface-variant);margin-top:2px">Play several videos at once</div></div></div>
+          <div style="width:52px;height:32px;border-radius:16px;background:{{ mvSw.trackBg }};border:2px solid {{ mvSw.trackBorder }};position:relative;flex:none"><div style="position:absolute;top:50%;left:{{ mvSw.knobX }};transform:translateY(-50%);width:{{ mvSw.knobSize }};height:{{ mvSw.knobSize }};border-radius:50%;background:{{ mvSw.knobBg }}"></div></div>
+        </div>
+        <div onClick="{{ toggleAlbumFeature }}" style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;cursor:pointer;gap:16px;border-top:1px solid var(--outline-variant)">
+          <div style="display:flex;align-items:center;gap:12px"><span style="font-family:'Material Symbols Rounded';font-size:22px;color:var(--primary)">photo_album</span><div><div style="font-size:15px">Album tab</div><div style="font-size:12px;color:var(--on-surface-variant);margin-top:2px">Browse folders as albums</div></div></div>
+          <div style="width:52px;height:32px;border-radius:16px;background:{{ albumSw.trackBg }};border:2px solid {{ albumSw.trackBorder }};position:relative;flex:none"><div style="position:absolute;top:50%;left:{{ albumSw.knobX }};transform:translateY(-50%);width:{{ albumSw.knobSize }};height:{{ albumSw.knobSize }};border-radius:50%;background:{{ albumSw.knobBg }}"></div></div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--on-surface-variant);margin:0 4px 10px;line-height:1.4">Reorder the bottom bar and choose which tabs appear. Gallery is always shown and the app opens on it.</div>
+      <div style="background:var(--sc-low);border-radius:20px;overflow:hidden;margin-bottom:26px">
+        <sc-for list="{{ tabConfig }}" as="t" hint-placeholder-count="5">
+          <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-top:1px solid var(--outline-variant)">
+            <span style="font-family:'Material Symbols Rounded';font-size:22px;color:var(--primary)">{{ t.icon }}</span>
+            <span style="flex:1;font-size:15px">{{ t.label }}</span>
+            <sc-if value="{{ t.locked }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;color:var(--on-surface-variant);border:1px solid var(--outline-variant);border-radius:8px;padding:1px 6px">always</span></sc-if>
+            <span onClick="{{ t.up }}" style="font-family:'Material Symbols Rounded';font-size:22px;color:var(--on-surface-variant);cursor:pointer;opacity:{{ t.upOpacity }}">arrow_upward</span>
+            <span onClick="{{ t.down }}" style="font-family:'Material Symbols Rounded';font-size:22px;color:var(--on-surface-variant);cursor:pointer;opacity:{{ t.downOpacity }}">arrow_downward</span>
+            <span onClick="{{ t.toggleVis }}" style="font-family:'Material Symbols Rounded';font-size:24px;color:{{ t.visColor }};font-variation-settings:'FILL' {{ t.visFill }};cursor:{{ t.visCursor }}">{{ t.visBox }}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <!-- Source Folders -->
+      <div style="font-size:20px;font-weight:500;color:var(--primary);margin:0 4px 4px">Source Folders</div>
+      <div style="font-size:12px;color:var(--on-surface-variant);margin:0 4px 10px;line-height:1.4">Bold headers are main folders you know; items below are their subfolders. “Other” lists stray folders found to contain media.</div>
+      <div style="background:var(--sc-low);border-radius:20px;overflow:hidden;margin-bottom:26px">
+        <sc-for list="{{ folderGroups }}" as="g" hint-placeholder-count="3">
+          <div onClick="{{ g.toggleGroup }}" style="padding:16px 18px;display:flex;align-items:center;gap:8px;cursor:pointer">
+            <span style="font-family:'Material Symbols Rounded';font-size:20px;color:var(--primary)">{{ g.icon }}</span>
+            <span style="flex:1;font-size:14px;font-weight:700;letter-spacing:.3px;color:var(--on-surface)">{{ g.name }}</span>
+            <span style="font-family:'Material Symbols Rounded';font-size:24px;color:var(--on-surface-variant)">{{ g.chevron }}</span>
+          </div>
+          <sc-if value="{{ g.open }}" hint-placeholder-val="{{ true }}">
+            <sc-for list="{{ g.items }}" as="f" hint-placeholder-count="4">
+              <div onClick="{{ f.toggle }}" style="display:flex;align-items:center;justify-content:space-between;padding:13px 18px 13px 30px;cursor:pointer;border-top:1px solid var(--outline-variant)">
+                <span style="font-size:15px">{{ f.label }}</span>
+                <span style="font-family:'Material Symbols Rounded';font-size:24px;color:{{ f.color }};font-variation-settings:'FILL' {{ f.fill }}">{{ f.box }}</span>
+              </div>
+            </sc-for>
+          </sc-if>
+        </sc-for>
+      </div>
+
+      <!-- File Types -->
+      <div style="font-size:20px;font-weight:500;color:var(--primary);margin:0 4px 4px">File Types</div>
+      <div style="font-size:12px;color:var(--on-surface-variant);margin:0 4px 10px;line-height:1.4">Detected across your selected folders. Unsupported types are shown greyed out for transparency.</div>
+      <div style="background:var(--sc-low);border-radius:20px;overflow:hidden;margin-bottom:26px">
+        <sc-if value="{{ noTypes }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:20px;text-align:center;font-size:14px;color:var(--on-surface-variant)">Select a source folder to detect file types.</div>
+        </sc-if>
+        <sc-for list="{{ fileTypeItems }}" as="t" hint-placeholder-count="5">
+          <div onClick="{{ t.toggle }}" style="display:flex;align-items:center;justify-content:space-between;padding:13px 18px;cursor:{{ t.cursor }};border-top:1px solid var(--outline-variant);opacity:{{ t.opacity }}">
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="font-family:'Material Symbols Rounded';font-size:22px;color:var(--on-surface-variant)">{{ t.icon }}</span>
+              <span style="font-size:15px">.{{ t.ext }}</span>
+              <sc-if value="{{ t.unsupported }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;color:var(--on-surface-variant);border:1px solid var(--outline-variant);border-radius:8px;padding:1px 7px">not media</span></sc-if>
+            </div>
+            <span style="font-family:'Material Symbols Rounded';font-size:24px;color:{{ t.color }};font-variation-settings:'FILL' {{ t.fill }}">{{ t.box }}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <!-- Behaviour -->
+      <div style="font-size:20px;font-weight:500;color:var(--primary);margin:0 4px 8px">Playback &amp; Safety</div>
+      <div style="background:var(--sc-low);border-radius:20px;overflow:hidden;margin-bottom:16px">
+        <sc-for list="{{ toggles }}" as="t" hint-placeholder-count="3">
+          <div onClick="{{ t.toggle }}" style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;cursor:pointer;gap:16px;border-top:1px solid var(--outline-variant)">
+            <div><div style="font-size:15px">{{ t.label }}</div><sc-if value="{{ t.sub }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px;color:var(--on-surface-variant);margin-top:2px">{{ t.sub }}</div></sc-if></div>
+            <div style="width:52px;height:32px;border-radius:16px;background:{{ t.trackBg }};border:2px solid {{ t.trackBorder }};position:relative;flex:none;transition:background .2s,border-color .2s">
+              <div style="position:absolute;top:50%;left:{{ t.knobX }};transform:translateY(-50%);width:{{ t.knobSize }};height:{{ t.knobSize }};border-radius:50%;background:{{ t.knobBg }};transition:all .2s"></div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <!-- Storage & Advanced -->
+      <div style="font-size:20px;font-weight:500;color:var(--primary);margin:14px 4px 8px">Storage &amp; Data</div>
+      <div style="background:var(--sc-low);border-radius:20px;overflow:hidden;margin-bottom:16px">
+        <div onClick="{{ toggleCopyFavs }}" style="display:flex;align-items:center;gap:14px;padding:16px 18px;cursor:pointer">
+          <span style="font-family:'Material Symbols Rounded';font-size:22px;color:var(--primary)">folder_copy</span>
+          <div style="flex:1"><div style="font-size:15px">Favourites folder</div><div style="font-size:12px;color:var(--on-surface-variant);margin-top:2px">Auto copy/remove favourites in a chosen folder</div></div>
+          <div style="width:52px;height:32px;border-radius:16px;background:{{ copyFavSw.trackBg }};border:2px solid {{ copyFavSw.trackBorder }};position:relative;flex:none"><div style="position:absolute;top:50%;left:{{ copyFavSw.knobX }};transform:translateY(-50%);width:{{ copyFavSw.knobSize }};height:{{ copyFavSw.knobSize }};border-radius:50%;background:{{ copyFavSw.knobBg }}"></div></div>
+        </div>
+        <sc-if value="{{ copyFavOn }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ chooseFavFolder }}" style="display:flex;align-items:center;gap:12px;padding:12px 18px 16px 30px;cursor:pointer;border-top:1px solid var(--outline-variant)">
+            <span style="font-family:'Material Symbols Rounded';font-size:20px;color:var(--on-surface-variant)">folder</span>
+            <span style="flex:1;font-size:13px;color:var(--on-surface-variant);word-break:break-all">{{ copyFavPath }}</span>
+            <span style="font-family:'Material Symbols Rounded';font-size:20px;color:var(--primary)">edit</span>
+          </div>
+        </sc-if>
+        <div onClick="{{ openHidden }}" style="display:flex;align-items:center;gap:14px;padding:16px 18px;cursor:pointer;border-top:1px solid var(--outline-variant)">
+          <span style="font-family:'Material Symbols Rounded';font-size:22px;color:var(--primary)">folder_special</span>
+          <div style="flex:1"><div style="font-size:15px">Hidden Folders</div><div style="font-size:12px;color:var(--on-surface-variant);margin-top:2px">Include folders Android normally hides</div></div>
+          <span style="font-family:'Material Symbols Rounded';font-size:22px;color:var(--on-surface-variant)">chevron_right</span>
+        </div>
+        <div onClick="{{ doExportSettings }}" style="display:flex;align-items:center;gap:14px;padding:16px 18px;cursor:pointer;border-top:1px solid var(--outline-variant)">
+          <span style="font-family:'Material Symbols Rounded';font-size:22px;color:var(--primary)">ios_share</span>
+          <div style="flex:1"><div style="font-size:15px">Export settings</div><div style="font-size:12px;color:var(--on-surface-variant);margin-top:2px">Folders, filters, columns, slideshow speed</div></div>
+        </div>
+        <div onClick="{{ doDownloadFavs }}" style="display:flex;align-items:center;gap:14px;padding:16px 18px;cursor:pointer;border-top:1px solid var(--outline-variant)">
+          <span style="font-family:'Material Symbols Rounded';font-size:22px;color:var(--primary)">archive</span>
+          <div style="flex:1"><div style="font-size:15px">Download favourites (.zip)</div><div style="font-size:12px;color:var(--on-surface-variant);margin-top:2px">Copies originals, never moves them</div></div>
+        </div>
+        <div onClick="{{ doImport }}" style="display:flex;align-items:center;gap:14px;padding:16px 18px;cursor:pointer;border-top:1px solid var(--outline-variant)">
+          <span style="font-family:'Material Symbols Rounded';font-size:22px;color:var(--primary)">file_download</span>
+          <div style="flex:1"><div style="font-size:15px">Import settings / favourites</div></div>
+        </div>
+      </div>
+
+      <div style="text-align:center;font-size:13px;color:var(--on-surface-variant);line-height:1.5;margin:24px 0 16px">Help us to grow and to bring new and improved features to My Random Gallery!</div>
+
+      <div style="display:flex;gap:12px;margin-bottom:22px">
+        <button onClick="{{ doGithub }}" style="flex:1;height:52px;border:1px solid var(--outline);background:transparent;color:var(--on-surface);border-radius:26px;font-family:Roboto;font-size:13px;font-weight:700;letter-spacing:.4px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+          <span style="font-family:'Material Symbols Rounded';font-size:20px">code</span>GITHUB
+        </button>
+        <button onClick="{{ doRate }}" style="flex:1;height:52px;border:none;background:var(--primary);color:var(--on-primary);border-radius:26px;font-family:Roboto;font-size:13px;font-weight:700;letter-spacing:.4px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+          <span style="font-family:'Material Symbols Rounded';font-size:20px">star</span>RATE
+        </button>
+      </div>
+
+      <div style="display:flex;justify-content:center;gap:26px;color:var(--on-surface-variant)">
+        <span onClick="{{ noop }}" style="font-family:'Material Symbols Rounded';font-size:28px;cursor:pointer">photo_camera</span>
+        <span onClick="{{ noop }}" style="font-family:'Material Symbols Rounded';font-size:28px;cursor:pointer">groups</span>
+        <span onClick="{{ noop }}" style="font-family:'Material Symbols Rounded';font-size:28px;cursor:pointer">public</span>
+      </div>
+      <div style="text-align:center;font-size:12px;color:var(--on-surface-variant);margin-top:22px;line-height:1.5">Made with ❤️ by Sandeep Kiran <span style="opacity:.7">(Mousy)</span></div>
+    </div>
+    </sc-if>
+
+  </div>
+
+  <!-- ============ BOTTOM NAV (M3) ============ -->
+  <div style="flex:none;display:flex;height:80px;background:var(--sc);padding:12px 4px;border-top:1px solid var(--outline-variant)">
+    <sc-for list="{{ nav }}" as="n" hint-placeholder-count="5">
+      <button onClick="{{ n.select }}" style="flex:1;min-width:0;background:transparent;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;padding:0;font-family:Roboto">
+        <div style="width:52px;height:32px;border-radius:16px;background:{{ n.pill }};display:grid;place-items:center;transition:background .2s">
+          <span style="font-family:'Material Symbols Rounded';font-size:24px;color:{{ n.iconColor }};font-variation-settings:'FILL' {{ n.fill }}">{{ n.icon }}</span>
+        </div>
+        <span style="font-size:11px;font-weight:500;color:{{ n.labelColor }};max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 2px">{{ n.label }}</span>
+      </button>
+    </sc-for>
+  </div>
+
+  <!-- ============ SELECTION BAR ============ -->
+  <sc-if value="{{ selectMode }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;top:0;left:0;right:0;z-index:25;display:flex;align-items:center;gap:4px;padding:12px 8px;background:var(--secondary-container);color:var(--on-secondary-container)">
+      <button onClick="{{ exitSelect }}" style="width:44px;height:44px;border:none;background:transparent;color:inherit;border-radius:22px;cursor:pointer;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:24px">close</span></button>
+      <div style="flex:1;font-size:18px;font-weight:500">{{ selCount }} selected</div>
+      <button onClick="{{ favSelected }}" style="width:44px;height:44px;border:none;background:transparent;color:inherit;border-radius:22px;cursor:pointer;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:24px">favorite</span></button>
+      <button onClick="{{ deleteSelected }}" style="width:44px;height:44px;border:none;background:transparent;color:inherit;border-radius:22px;cursor:pointer;display:grid;place-items:center;opacity:{{ deleteSelOpacity }}"><span style="font-family:'Material Symbols Rounded';font-size:24px">delete</span></button>
+    </div>
+  </sc-if>
+
+  <!-- ============ FAV TYPE DROPDOWN ============ -->
+  <sc-if value="{{ favTypeMenuOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ toggleFavTypeMenu }}" style="position:absolute;inset:0;z-index:20"></div>
+    <div style="position:absolute;top:56px;right:14px;z-index:21;background:var(--sc-high);color:var(--on-surface);border-radius:14px;padding:8px 0;min-width:170px;box-shadow:0 8px 28px rgba(0,0,0,.45)">
+      <sc-for list="{{ favTypeOptions }}" as="o" hint-placeholder-count="4">
+        <div onClick="{{ o.toggle }}" style="display:flex;align-items:center;gap:10px;padding:11px 16px;cursor:pointer;font-size:14px">
+          <span style="font-family:'Material Symbols Rounded';font-size:20px;color:{{ o.color }};font-variation-settings:'FILL' {{ o.fill }}">{{ o.box }}</span>{{ o.label }}
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <!-- ============ FULLSCREEN VIEWER ============ -->
+  <sc-if value="{{ viewerOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;inset:0;background:#000;z-index:30;display:flex;flex-direction:column">
+    <div style="position:absolute;inset:0;z-index:1" onClick="{{ tapChrome }}" onPointerDown="{{ vwDown }}" onPointerUp="{{ vwUp }}">
+      <div style="width:100%;height:100%;background:linear-gradient(150deg,#33333a,#111114);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
+        <span style="font-family:'Material Symbols Rounded';font-size:72px;color:rgba(255,255,255,.24);font-variation-settings:'FILL' 1">{{ viewerBigIcon }}</span>
+        <span style="font-family:Roboto;font-size:13px;color:rgba(255,255,255,.4)">{{ viewerName }} · {{ viewerRes }}</span>
+      </div>
+    </div>
+
+    <sc-if value="{{ chromeOn }}" hint-placeholder-val="{{ true }}">
+    <div style="position:relative;z-index:3;display:flex;align-items:center;gap:2px;padding:14px 6px;color:#fff;background:linear-gradient(to bottom,rgba(0,0,0,.6),transparent)">
+      <button onClick="{{ closeViewer }}" style="width:44px;height:44px;border:none;background:transparent;color:#fff;border-radius:22px;cursor:pointer;display:grid;place-items:center">
+        <span style="font-family:'Material Symbols Rounded';font-size:24px">arrow_back</span>
+      </button>
+      <div style="flex:1;font-size:19px;font-weight:500">{{ viewerDate }}</div>
+      <button onClick="{{ togglePlay }}" style="width:44px;height:44px;border:none;background:transparent;color:#fff;border-radius:22px;cursor:pointer;display:grid;place-items:center">
+        <span style="font-family:'Material Symbols Rounded';font-size:24px">{{ playIcon }}</span>
+      </button>
+      <button onClick="{{ toggleSpeedMenu }}" style="height:44px;padding:0 8px;border:none;background:transparent;color:#fff;border-radius:22px;cursor:pointer;display:flex;align-items:center;gap:3px">
+        <span style="font-family:'Material Symbols Rounded';font-size:22px">speed</span><span style="font-size:12px;font-weight:600">{{ speedLabel }}</span>
+      </button>
+      <button onClick="{{ favViewer }}" style="width:44px;height:44px;border:none;background:transparent;border-radius:22px;cursor:pointer;display:grid;place-items:center">
+        <span style="font-family:'Material Symbols Rounded';font-size:24px;color:{{ viewerFavColor }};font-variation-settings:'FILL' {{ viewerFavFill }}">favorite</span>
+      </button>
+      <button onClick="{{ toggleMenu }}" style="width:44px;height:44px;border:none;background:transparent;color:#fff;border-radius:22px;cursor:pointer;display:grid;place-items:center">
+        <span style="font-family:'Material Symbols Rounded';font-size:24px">more_vert</span>
+      </button>
+    </div>
+    </sc-if>
+
+    <div style="flex:1"></div>
+
+    <sc-if value="{{ chromeOn }}" hint-placeholder-val="{{ true }}">
+    <div style="position:relative;z-index:3;flex:none;display:flex;height:80px;background:var(--sc);padding:12px 4px;border-top:1px solid var(--outline-variant)">
+      <sc-for list="{{ nav }}" as="n" hint-placeholder-count="5">
+        <button onClick="{{ n.select }}" style="flex:1;min-width:0;background:transparent;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;padding:0;font-family:Roboto">
+          <div style="width:52px;height:32px;border-radius:16px;background:{{ n.pill }};display:grid;place-items:center">
+            <span style="font-family:'Material Symbols Rounded';font-size:24px;color:{{ n.iconColor }};font-variation-settings:'FILL' {{ n.fill }}">{{ n.icon }}</span>
+          </div>
+          <span style="font-size:11px;font-weight:500;color:{{ n.labelColor }};max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 2px">{{ n.label }}</span>
+        </button>
+      </sc-for>
+    </div>
+    </sc-if>
+
+    <!-- speed presets -->
+    <sc-if value="{{ speedMenuOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ toggleSpeedMenu }}" style="position:absolute;inset:0;z-index:40"></div>
+      <div style="position:absolute;top:60px;right:52px;z-index:41;background:var(--sc-high);color:var(--on-surface);border-radius:14px;padding:8px 0;min-width:150px;max-height:320px;overflow-y:auto;box-shadow:0 8px 28px rgba(0,0,0,.5)">
+        <div style="padding:8px 16px 4px;font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--on-surface-variant)">SLIDESHOW SPEED</div>
+        <sc-for list="{{ speedOptions }}" as="sp" hint-placeholder-count="9">
+          <div onClick="{{ sp.select }}" style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;cursor:pointer;font-size:14px">
+            {{ sp.label }}<sc-if value="{{ sp.active }}" hint-placeholder-val="{{ false }}"><span style="font-family:'Material Symbols Rounded';font-size:20px;color:var(--primary)">check</span></sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <!-- context menu -->
+    <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ toggleMenu }}" style="position:absolute;inset:0;z-index:40"></div>
+      <div style="position:absolute;top:60px;right:14px;z-index:41;background:var(--sc-high);color:var(--on-surface);border-radius:14px;padding:8px 0;min-width:200px;box-shadow:0 8px 28px rgba(0,0,0,.5)">
+        <sc-for list="{{ menuItems }}" as="m" hint-placeholder-count="3">
+          <div onClick="{{ m.action }}" style="display:flex;align-items:center;gap:12px;padding:13px 20px;font-size:15px;cursor:{{ m.cursor }};color:{{ m.color }};opacity:{{ m.opacity }}">
+            <span style="font-family:'Material Symbols Rounded';font-size:20px">{{ m.icon }}</span>{{ m.label }}
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+  </div>
+  </sc-if>
+
+  <!-- ============ HIDDEN FOLDERS DIALOG ============ -->
+  <sc-if value="{{ hiddenOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;z-index:50;background:var(--scrim);display:grid;place-items:center;padding:24px">
+      <div style="background:var(--sc-high);color:var(--on-surface);border-radius:28px;width:100%;max-width:340px;padding:24px;box-shadow:0 12px 40px rgba(0,0,0,.5)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+          <span style="font-family:'Material Symbols Rounded';font-size:26px;color:var(--primary)">folder_special</span>
+          <div style="font-size:20px;font-weight:500">Hidden folders</div>
+        </div>
+        <div style="font-size:14px;color:var(--on-surface-variant);line-height:1.5;margin-bottom:16px">Pick hidden folders on this device that contain media you want indexed.</div>
+        <div style="max-height:220px;overflow-y:auto;margin:0 -8px">
+          <sc-for list="{{ hiddenFolders }}" as="h" hint-placeholder-count="4">
+            <div onClick="{{ h.toggle }}" style="display:flex;align-items:center;justify-content:space-between;padding:12px 8px;cursor:pointer">
+              <div style="display:flex;align-items:center;gap:10px"><span style="font-family:'Material Symbols Rounded';font-size:20px;color:var(--on-surface-variant)">folder</span><span style="font-size:14px">{{ h.label }}</span></div>
+              <span style="font-family:'Material Symbols Rounded';font-size:22px;color:{{ h.color }};font-variation-settings:'FILL' {{ h.fill }}">{{ h.box }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px">
+          <button onClick="{{ closeHidden }}" style="height:40px;padding:0 20px;border:none;background:transparent;color:var(--primary);border-radius:20px;font-family:Roboto;font-size:14px;font-weight:600;cursor:pointer">Done</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ DETAILS DIALOG ============ -->
+  <sc-if value="{{ detailsOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;z-index:50;background:var(--scrim);display:grid;place-items:center;padding:24px">
+      <div style="background:var(--sc-high);color:var(--on-surface);border-radius:28px;width:100%;max-width:340px;padding:24px;box-shadow:0 12px 40px rgba(0,0,0,.5)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+          <span style="font-family:'Material Symbols Rounded';font-size:26px;color:var(--primary)">info</span>
+          <div style="font-size:20px;font-weight:500">Details</div>
+        </div>
+        <sc-for list="{{ detailRows }}" as="d" hint-placeholder-count="6">
+          <div style="display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid var(--outline-variant)">
+            <span style="font-size:13px;color:var(--on-surface-variant)">{{ d.k }}</span>
+            <span style="font-size:13px;font-weight:500;text-align:right;word-break:break-all">{{ d.v }}</span>
+          </div>
+        </sc-for>
+        <div style="display:flex;justify-content:flex-end;margin-top:18px">
+          <button onClick="{{ closeDetails }}" style="height:40px;padding:0 20px;border:none;background:transparent;color:var(--primary);border-radius:20px;font-family:Roboto;font-size:14px;font-weight:600;cursor:pointer">Close</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ DELETE CONFIRM ============ -->
+  <sc-if value="{{ confirmOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;z-index:55;background:var(--scrim);display:grid;place-items:center;padding:24px">
+      <div style="background:var(--sc-high);color:var(--on-surface);border-radius:28px;width:100%;max-width:320px;padding:24px;box-shadow:0 12px 40px rgba(0,0,0,.5)">
+        <span style="font-family:'Material Symbols Rounded';font-size:26px;color:var(--error)">delete</span>
+        <div style="font-size:20px;font-weight:500;margin:12px 0 8px">{{ confirmText }}</div>
+        <div style="font-size:14px;color:var(--on-surface-variant);line-height:1.5">This moves the file to trash. You can undo right after.</div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:22px">
+          <button onClick="{{ cancelDelete }}" style="height:40px;padding:0 18px;border:none;background:transparent;color:var(--primary);border-radius:20px;font-family:Roboto;font-size:14px;font-weight:600;cursor:pointer">Cancel</button>
+          <button onClick="{{ confirmDelete }}" style="height:40px;padding:0 18px;border:none;background:var(--error);color:#fff;border-radius:20px;font-family:Roboto;font-size:14px;font-weight:700;cursor:pointer">Delete</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ CUSTOM SPEED DIALOG ============ -->
+  <sc-if value="{{ customOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;z-index:55;background:var(--scrim);display:grid;place-items:center;padding:24px">
+      <div style="background:var(--sc-high);color:var(--on-surface);border-radius:28px;width:100%;max-width:320px;padding:24px;box-shadow:0 12px 40px rgba(0,0,0,.5)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px"><span style="font-family:'Material Symbols Rounded';font-size:26px;color:var(--primary)">timer</span><div style="font-size:20px;font-weight:500">Custom speed</div></div>
+        <div style="font-size:14px;color:var(--on-surface-variant);margin-bottom:16px">Seconds each photo stays on screen (videos always play in full).</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <input type="number" min="1" value="{{ customVal }}" onInput="{{ setCustomVal }}" style="flex:1;font-family:Roboto;font-size:16px;padding:12px 14px;border-radius:12px;border:1px solid var(--outline);background:transparent;color:var(--on-surface)">
+          <span style="font-size:15px;color:var(--on-surface-variant)">sec</span>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:22px">
+          <button onClick="{{ closeCustom }}" style="height:40px;padding:0 18px;border:none;background:transparent;color:var(--primary);border-radius:20px;font-family:Roboto;font-size:14px;font-weight:600;cursor:pointer">Cancel</button>
+          <button onClick="{{ confirmCustom }}" style="height:40px;padding:0 18px;border:none;background:var(--primary);color:var(--on-primary);border-radius:20px;font-family:Roboto;font-size:14px;font-weight:700;cursor:pointer">Set</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ VIDEO PICKER ============ -->
+  <sc-if value="{{ mvPickerOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;z-index:56;background:var(--scrim);display:grid;place-items:center;padding:24px">
+      <div style="background:var(--sc-high);color:var(--on-surface);border-radius:28px;width:100%;max-width:340px;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,.5)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;padding:0 4px"><span style="font-family:'Material Symbols Rounded';font-size:26px;color:var(--primary)">video_library</span><div style="font-size:20px;font-weight:500">Choose a video</div></div>
+        <div style="max-height:260px;overflow-y:auto;margin:0 -4px">
+          <sc-for list="{{ mvPickerOptions }}" as="o" hint-placeholder-count="4">
+            <div onClick="{{ o.select }}" style="display:flex;align-items:center;gap:12px;padding:12px 8px;cursor:pointer;font-size:14px"><span style="font-family:'Material Symbols Rounded';font-size:20px;color:var(--on-surface-variant)">{{ o.icon }}</span>{{ o.label }}</div>
+          </sc-for>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:12px"><button onClick="{{ mvClosePicker }}" style="height:40px;padding:0 20px;border:none;background:transparent;color:var(--primary);border-radius:20px;font-family:Roboto;font-size:14px;font-weight:600;cursor:pointer">Cancel</button></div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ MULTI-VIDEO LANDSCAPE ============ -->
+  <sc-if value="{{ mvLandscape }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:#000;z-index:46;display:grid;place-items:center;overflow:hidden">
+      <button onClick="{{ mvToggleLandscape }}" title="Exit landscape" style="position:absolute;bottom:20px;right:20px;z-index:3;height:44px;padding:0 18px;border:none;background:var(--primary);color:var(--on-primary);border-radius:22px;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:Roboto;font-size:14px;font-weight:600"><span style="font-family:'Material Symbols Rounded';font-size:22px">close_fullscreen</span>Exit</button>
+      <div style="width:812px;height:392px;transform:rotate(90deg);transform-origin:center;display:flex;flex-direction:column;gap:8px;padding:12px">
+        <div style="display:flex;align-items:center;gap:8px;color:#fff">
+          <div style="flex:1;font-size:15px;font-weight:500">Multi-Video · Landscape</div>
+          <div style="display:flex;background:rgba(255,255,255,.12);border-radius:18px;padding:3px">
+            <sc-for list="{{ mvCountOptions }}" as="o" hint-placeholder-count="3"><button onClick="{{ o.select }}" style="border:none;cursor:pointer;font-family:Roboto;font-size:13px;font-weight:600;width:36px;height:28px;border-radius:14px;background:{{ o.bg }};color:{{ o.color }}">{{ o.label }}</button></sc-for>
+          </div>
+          <button onClick="{{ mvToggleLandscape }}" style="width:40px;height:40px;border:none;background:transparent;color:#fff;border-radius:20px;cursor:pointer;display:grid;place-items:center"><span style="font-family:'Material Symbols Rounded';font-size:24px">close_fullscreen</span></button>
+        </div>
+        <div style="flex:1;display:grid;gap:8px;grid-template-columns:repeat({{ mvCols }},1fr)">
+          <sc-for list="{{ mvCells }}" as="c" hint-placeholder-count="2">
+            <div onClick="{{ c.tapArea }}" style="position:relative;background:linear-gradient(145deg,#2a2a30,#101012);border-radius:10px;overflow:hidden;cursor:pointer;display:grid;place-items:center">
+              <sc-if value="{{ c.empty }}" hint-placeholder-val="{{ true }}"><div style="display:flex;flex-direction:column;align-items:center;gap:6px;color:rgba(255,255,255,.6)"><span style="font-family:'Material Symbols Rounded';font-size:30px">add_to_queue</span><span style="font-size:12px">Choose video</span></div></sc-if>
+              <sc-if value="{{ c.showOverlay }}" hint-placeholder-val="{{ false }}">
+                <span style="font-family:'Material Symbols Rounded';font-size:40px;color:rgba(255,255,255,.5);font-variation-settings:'FILL' 1">{{ c.bigIcon }}</span>
+                <span style="position:absolute;top:8px;left:8px;font-size:11px;color:#fff;background:rgba(0,0,0,.5);padding:2px 8px;border-radius:8px">{{ c.label }}</span>
+              </sc-if>
+              <sc-if value="{{ c.showControls }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:8px;right:8px;bottom:8px;height:4px;border-radius:2px;background:rgba(255,255,255,.25);overflow:hidden"><div style="height:100%;width:{{ c.prog }};background:var(--primary)"></div></div></sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ SNACKBAR ============ -->
+  <sc-if value="{{ snackOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:16px;right:16px;bottom:96px;z-index:60;background:var(--sc-highest);color:var(--on-surface);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 28px rgba(0,0,0,.5);animation:rgSnack .22s ease">
+      <span style="flex:1;font-size:14px">{{ snackText }}</span>
+      <sc-if value="{{ snackHasAction }}" hint-placeholder-val="{{ false }}">
+        <button onClick="{{ snackAction }}" style="border:none;background:transparent;color:var(--primary);font-family:Roboto;font-size:14px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:.4px">{{ snackActionLabel }}</button>
+      </sc-if>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:460,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  constructor(p){
+    super(p);
+    const DATES=['21.10.2024','04.03.2025','17.07.2026','29.12.2024','08.05.2025','13.01.2026','30.09.2024','22.06.2025'];
+    const RES=['4032×3024','1920×1080','1080×1920','3840×2160','1280×720','2160×2160'];
+    const vids=new Set([3,7,14,22,26]);
+    const gifs=new Set([5,11,18,24,29]);
+    this.FOLDER_TYPES={
+      'Pictures/Screenshots':['png','jpg'],'Pictures/xTwitter':['jpg','mp4','gif'],'Pictures/pixiv':['png','jpg','gif'],
+      'Pictures/Twitter':['jpg','mp4'],'Pictures/Reddit':['png','gif','mp4','webp'],'Pictures/WhatsApp':['jpg','mp4','pdf'],
+      'MyFiles/Images':['png','jpg','webp'],'MyFiles/Videos':['mp4'],
+      'Other/Pictures':['jpg','png'],'Other/Download':['jpg','png','pdf','mp3','webp'],'Other/Movies/TikTok':['mp4'],'Other/DCIM/Camera':['jpg','mp4'],
+    };
+    const fk=Object.keys(this.FOLDER_TYPES);
+    this.IMAGES=Array.from({length:30},(_,i)=>{
+      const id=i+1;
+      const type=vids.has(id)?'video':gifs.has(id)?'gif':'photo';
+      const ext=type==='video'?'mp4':type==='gif'?'gif':(id%2?'jpg':'png');
+      const dur=type==='video'?(8000+(id*4200)%52000):0;
+      return {id,type,ext,dur,folder:fk[i%fk.length],date:DATES[i%DATES.length],age:(id*13)%380,res:RES[id%RES.length],size:((id*1.7)%40+0.4).toFixed(1)+' MB'};
+    });
+    const vv=this.IMAGES.filter(im=>im.type==='video').map(im=>im.id);
+    this.SPEEDS=[{label:'1s',ms:1000},{label:'2s',ms:2000},{label:'5s',ms:5000},{label:'10s',ms:10000},{label:'15s',ms:15000},{label:'30s',ms:30000},{label:'1min',ms:60000},{label:'5min',ms:300000},{label:'Custom',ms:8000},{label:'Off',ms:0}];
+    this.FAV_WINDOWS=['all',7,14,30,60,90,365];
+    this.REC_WINDOWS=[7,14,30,60,90,365];
+    this.SUPPORTED=new Set(['png','jpg','jpeg','webp','gif','mp4','mp3']);
+    this.TYPE_ICON={png:'image',jpg:'image',jpeg:'image',webp:'image',gif:'gif',mp4:'movie',mp3:'music_note',pdf:'picture_as_pdf'};
+    this.TAB_DEF={fav:{label:'Favourites',icon:'favorite'},recent:{label:'Recent',icon:'schedule'},gallery:{label:'Gallery',icon:'shuffle'},slideshow:{label:'Slideshow',icon:'slideshow'},multivideo:{label:'Videos',icon:'video_library'},album:{label:'Albums',icon:'photo_album'},settings:{label:'More',icon:'more_horiz'}};
+    this.state={
+      theme:'dark', amoled:false, accent:'rose',
+      tab:'gallery', columns:3, gridMode:'swipe', seed:0,
+      order:this.IMAGES.map(im=>im.id), favs:{2:true,5:true,9:true,15:true,21:true,24:true}, deleted:{},
+      recentWindow:30, favWindow:'all', favTypes:{photo:true,video:true,gif:true}, favTypeMenu:false,
+      folders:{'Pictures/Screenshots':true,'Pictures/xTwitter':false,'Pictures/pixiv':false,'Pictures/Twitter':true,'Pictures/Reddit':true,'Pictures/WhatsApp':false,'MyFiles/Images':false,'MyFiles/Videos':false,'Other/Pictures':false,'Other/Download':true,'Other/Movies/TikTok':false,'Other/DCIM/Camera':true},
+      fileTypes:{},
+      dontLoop:false, disableSwipeDelete:true, disableEditDelete:false, copyFavs:false,
+      copyFavPath:'/storage/emulated/0/MyRandomGallery/Favourites',
+      hiddenFolders:{'.thumbnails':false,'.hidden_pics':false,'Android/media':false,'.Trash':false},
+      viewer:false, viewerIdx:0, viewerList:[], playing:false, menu:false, chrome:true, speedIdx:2, speedMenu:false, customMs:8000, customVal:8, customOpen:false,
+      detailsOpen:false, confirm:null, hiddenOpen:false,
+      selectMode:false, selected:{}, collapsed:{},
+      albumOpen:null,
+      tabFeature:{multivideo:false,album:false}, tabOrder:['fav','recent','gallery','slideshow','settings'], tabHidden:{},
+      mv:{count:2,muteAll:false,landscape:false,overlay:true,picker:null,cells:[{vid:null,playing:false,muted:false,prog:0},{vid:null,playing:false,muted:false,prog:0},{vid:null,playing:false,muted:false,prog:0},{vid:null,playing:false,muted:false,prog:0}]},
+      snack:null,
+    };
+  }
+  componentDidMount(){ this._mv=setInterval(()=>{ if(this.state.tab!=='multivideo')return; this.setState(st=>{ let ch=false; const cells=st.mv.cells.map(c=>{ if(c.vid&&c.playing){ ch=true; return {...c,prog:(c.prog+2)%100}; } return c; }); return ch?{mv:{...st.mv,cells}}:null; }); },240); }
+  mvPing(){ clearTimeout(this._mvOv); this.setState(st=>({mv:{...st.mv,overlay:true}})); this._mvOv=setTimeout(()=>this.setState(st=>st.tab==='multivideo'?{mv:{...st.mv,overlay:false}}:null),3000); }
+  componentWillUnmount(){ clearTimeout(this._t); clearTimeout(this._snackT); clearTimeout(this._longT); clearTimeout(this._tapT); clearInterval(this._mv); clearTimeout(this._mvOv); }
+  componentDidUpdate(pp,ps){ const s=this.state; if(ps.playing!==s.playing||ps.viewerIdx!==s.viewerIdx||ps.speedIdx!==s.speedIdx||ps.customMs!==s.customMs){ if(s.playing&&s.viewer)this.scheduleNext(); else clearTimeout(this._t); } }
+  currentSpeedMs(){ const i=this.state.speedIdx; return i===8?this.state.customMs:this.SPEEDS[i].ms; }
+  startPlay(){ this.scheduleNext(); }
+  liveVL(s){ return (s.viewerList||[]).filter(id=>!s.deleted[id]); }
+  scheduleNext(){ clearTimeout(this._t); const s=this.state; if(!s.playing||!s.viewer)return; if(s.speedIdx===9)return; const l=this.liveVL(s); if(!l.length)return; const cur=this.imgById(l[s.viewerIdx]); const ms=(cur&&cur.type==='video')?cur.dur:this.currentSpeedMs();
+    this._t=setTimeout(()=>{ this.setState(st=>{ const ll=this.liveVL(st); if(!ll.length)return{playing:false}; let n=st.viewerIdx+1; if(n>=ll.length){ if(st.dontLoop)return{playing:false}; n=0;} return{viewerIdx:n}; }); },ms); }
+  liveOrder(s){ return s.order.filter(id=>!s.deleted[id]); }
+  imgById(id){ return this.IMAGES[id-1]; }
+  showSnack(text,actionLabel,action){ clearTimeout(this._snackT); this.setState({snack:{text,actionLabel,action}}); this._snackT=setTimeout(()=>this.setState({snack:null}),4000); }
+  typeCat(ext){ if(['png','jpg','jpeg','webp'].includes(ext))return'photo'; if(ext==='mp4')return'video'; if(ext==='gif')return'gif'; return'other'; }
+
+  renderVals(){
+    const s=this.state, set=(o,cb)=>this.setState(o,cb);
+    const selFolders=Object.keys(s.folders).filter(k=>s.folders[k]);
+    const noFolders=selFolders.length===0;
+    const availTypes=[...new Set(selFolders.flatMap(k=>this.FOLDER_TYPES[k]||[]))];
+    const ord=['jpg','jpeg','png','webp','gif','mp4','mp3','pdf'];
+    availTypes.sort((a,b)=>ord.indexOf(a)-ord.indexOf(b));
+    const ft={...s.fileTypes};
+    availTypes.forEach(t=>{ if(this.SUPPORTED.has(t)&&!(t in ft)) ft[t]=true; });
+    const catAllowed=(cat)=>{ const exts=availTypes.filter(e=>this.typeCat(e)===cat&&this.SUPPORTED.has(e)); if(!exts.length)return false; return exts.some(e=>ft[e]); };
+    const allowPhoto=catAllowed('photo'), allowVideo=catAllowed('video'), allowGif=catAllowed('gif');
+    const passType=(im)=> im.type==='photo'?allowPhoto: im.type==='video'?allowVideo: allowGif;
+    const badgeFor=(im)=> im.type==='video'?'play_circle': im.type==='gif'?'gif':'';
+    const bigIconFor=(t)=> t==='video'?'play_circle': t==='gif'?'gif':'image';
+
+    const liveIds=this.liveOrder(s);
+    const openImgNow=(id,list)=>{ const idx=list.indexOf(id); set({viewer:true,viewerList:list.slice(),viewerIdx:idx<0?0:idx,menu:false,speedMenu:false,detailsOpen:false,tab:'slideshow',playing:false,chrome:true}); };
+    const toggleSelect=(id)=>set(st=>{ const sel={...st.selected}; if(sel[id])delete sel[id]; else sel[id]=true; return {selected:sel,selectMode:Object.keys(sel).length>0}; });
+    const tapTile=(id,list)=>()=>{
+      if(this._suppressClick){ this._suppressClick=false; return; }
+      if(this._gs&&this._gs.moved){ this._gs.moved=false; return; }
+      if(this.state.selectMode){ toggleSelect(id); return; }
+      const now=Date.now();
+      if(this._lastTapId===id&&now-this._lastTapTime<300){ clearTimeout(this._tapT); this._lastTapId=null; set(st=>({favs:{...st.favs,[id]:!st.favs[id]}})); }
+      else { this._lastTapId=id; this._lastTapTime=now; clearTimeout(this._tapT); this._tapT=setTimeout(()=>{ this._lastTapId=null; openImgNow(id,list); },300); }
+    };
+    const downTile=(id)=>()=>{ this._suppressClick=false; clearTimeout(this._longT); this._longT=setTimeout(()=>{ this._suppressClick=true; set(st=>({selectMode:true,selected:{...st.selected,[id]:true}})); },2500); };
+    const upTile=()=>()=>{ clearTimeout(this._longT); };
+    const tile=(id,list)=>{ const im=this.imgById(id); const sel=!!s.selected[id]; return {id:im.id,type:im.type,fav:!!s.favs[im.id],badge:badgeFor(im),selected:sel,ring:sel?'inset 0 0 0 3px var(--primary)':'none',tap:tapTile(im.id,list),down:downTile(im.id),up:upTile()}; };
+
+    const galleryIds=noFolders?[]:liveIds.filter(id=>passType(this.imgById(id)));
+    const galleryImages=galleryIds.map(id=>tile(id,galleryIds));
+    const galleryEmptyTypes=!noFolders&&galleryIds.length===0;
+
+    const favWin=s.favWindow;
+    const favIds=noFolders?[]:liveIds.filter(id=>{ const im=this.imgById(id); if(!s.favs[id])return false; if(!s.favTypes[im.type])return false; if(favWin!=='all'&&im.age>favWin)return false; return true; });
+    const favImages=favIds.map(id=>tile(id,favIds));
+
+    const recIds=noFolders?[]:liveIds.filter(id=>this.imgById(id).age<=s.recentWindow).sort((a,b)=>this.imgById(a).age-this.imgById(b).age);
+    const recentImages=recIds.map(id=>tile(id,recIds));
+
+    // albums
+    const albumIdsFor=(key)=>liveIds.filter(id=>{ const im=this.imgById(id); return im.folder===key&&passType(im); });
+    const albums=selFolders.map(k=>({key:k,name:k.split('/').pop(),path:k,count:albumIdsFor(k).length,open:()=>set({albumOpen:k})})).filter(a=>a.count>0);
+    const albumDetailIds=s.albumOpen?albumIdsFor(s.albumOpen):[];
+    const albumImages=albumDetailIds.map(id=>tile(id,albumDetailIds));
+
+    // slideshow source list based on current tab
+    const tabList=()=>{ if(s.tab==='fav')return favIds; if(s.tab==='recent')return recIds; if(s.tab==='album'&&s.albumOpen)return albumDetailIds; return galleryIds; };
+
+    // nav (dynamic)
+    const navKeys=s.tabOrder.filter(k=>!s.tabHidden[k]);
+    const nav=navKeys.map(k=>{ const d=this.TAB_DEF[k]; const active=(s.viewer? k==='slideshow' : s.tab===k);
+      return {label:d.label,icon:d.icon,fill:active?'1':'0',pill:active?'var(--secondary-container)':'transparent',iconColor:active?'var(--on-secondary-container)':'var(--on-surface-variant)',labelColor:active?'var(--on-surface)':'var(--on-surface-variant)',
+        select:()=>{ clearTimeout(this._t); if(k==='slideshow'){ const list=tabList(); if(list.length) set({viewer:true,viewerList:list.slice(),viewerIdx:0,tab:'slideshow',menu:false,speedMenu:false,chrome:true,playing:true},()=>this.startPlay()); } else set({tab:k,viewer:false,playing:false,selectMode:false,selected:{},albumOpen:k==='album'?null:s.albumOpen},()=>{ if(k==='multivideo')this.mvPing(); }); }};
+    });
+
+    const hints=[{icon:'swipe',text:'Swipe the grid for new pics'},{icon:'pinch',text:'Pinch to zoom for more/less photos'},{icon:'touch_app',text:'Double tap to add photos to favourites'},{icon:'ads_click',text:'Hold to select multiple images'},{icon:'swipe_up',text:'Swipe up in fullscreen mode to delete'}];
+
+    const mkFolder=(group,item)=>{ const key=group+'/'+item; const on=!!s.folders[key];
+      return {label:item,box:on?'check_box':'check_box_outline_blank',fill:on?'1':'0',color:on?'var(--primary)':'var(--outline)',toggle:()=>set(st=>({folders:{...st.folders,[key]:!st.folders[key]}}))}; };
+    const grpDef=[
+      {name:'Pictures',prefix:'Pictures',icon:'folder',items:['Screenshots','xTwitter','pixiv','Twitter','Reddit','WhatsApp']},
+      {name:'MyFiles',prefix:'MyFiles',icon:'folder',items:['Images','Videos']},
+      {name:'Other (found)',prefix:'Other',icon:'folder_open',items:['Pictures','Download','Movies/TikTok','DCIM/Camera']},
+    ];
+    const folderGroups=grpDef.map(g=>{ const open=!s.collapsed[g.name]; return {name:g.name,icon:g.icon,open,chevron:open?'expand_less':'expand_more',toggleGroup:()=>set(st=>({collapsed:{...st.collapsed,[g.name]:!st.collapsed[g.name]}})),items:g.items.map(i=>mkFolder(g.prefix,i))}; });
+
+    const fileTypeItems=availTypes.map(ext=>{ const sup=this.SUPPORTED.has(ext); const on=sup&&ft[ext];
+      return {ext,icon:this.TYPE_ICON[ext]||'draft',unsupported:!sup,opacity:sup?'1':'.45',cursor:sup?'pointer':'default',
+        box:on?'check_box':'check_box_outline_blank',fill:on?'1':'0',color:on?'var(--primary)':'var(--outline)',
+        toggle:()=>{ if(!sup)return; set(st=>({fileTypes:{...ft,[ext]:!ft[ext]}})); }}; });
+
+    const sw=(v)=>({trackBg:v?'var(--primary)':'var(--sc-highest)',trackBorder:v?'var(--primary)':'var(--outline)',knobBg:v?'var(--on-primary)':'var(--outline)',knobSize:v?'24px':'16px',knobX:v?'24px':'6px'});
+    const toggles=[
+      Object.assign({label:"Don't loop videos",toggle:()=>set(st=>({dontLoop:!st.dontLoop}))},sw(s.dontLoop)),
+      Object.assign({label:"Disable 'Swipe up to Delete'",toggle:()=>set(st=>({disableSwipeDelete:!st.disableSwipeDelete}))},sw(s.disableSwipeDelete)),
+      Object.assign({label:"Disable editing & deleting media",sub:"Protect files from accidental changes",toggle:()=>set(st=>({disableEditDelete:!st.disableEditDelete}))},sw(s.disableEditDelete)),
+    ];
+
+    const pastel={rose:'#E9A8BD',lavender:'#C9B7F5',mint:'#8FF0C4',peach:'#FFCBA8',sky:'#A9D9FF',sand:'#ECD79A'};
+    const accentList=['rose','lavender','mint','peach','sky','sand'].map(k=>({key:k,label:k[0].toUpperCase()+k.slice(1),color:pastel[k],border:s.accent===k?'3px solid var(--on-surface)':'2px solid transparent',checkOpacity:s.accent===k?'1':'0',select:()=>set({accent:k})}));
+
+    // tabs & layout config
+    const moveTab=(k,dir)=>set(st=>{ const arr=st.tabOrder.slice(); const i=arr.indexOf(k); const j=i+dir; if(j<0||j>=arr.length)return{}; const t=arr[i]; arr[i]=arr[j]; arr[j]=t; return {tabOrder:arr}; });
+    const toggleHidden=(k)=>{ if(k==='gallery'||k==='settings')return; set(st=>({tabHidden:{...st.tabHidden,[k]:!st.tabHidden[k]}})); };
+    const tabConfig=s.tabOrder.map((k,i,arr)=>{ const locked=(k==='gallery'||k==='settings'); const vis=!s.tabHidden[k];
+      return {key:k,label:this.TAB_DEF[k].label,icon:this.TAB_DEF[k].icon,locked,
+        up:()=>moveTab(k,-1),down:()=>moveTab(k,1),upOpacity:i===0?'.3':'1',downOpacity:i===arr.length-1?'.3':'1',
+        visBox:vis?'check_box':'check_box_outline_blank',visFill:vis?'1':'0',visColor:locked?'var(--outline)':(vis?'var(--primary)':'var(--outline)'),visCursor:locked?'default':'pointer',toggleVis:()=>toggleHidden(k)}; });
+    const toggleMvFeature=()=>set(st=>{ const on=!st.tabFeature.multivideo; let order=st.tabOrder.slice(); const hidden={...st.tabHidden}; if(on){ if(!order.includes('multivideo')){ const si=order.indexOf('slideshow'); order.splice(si>=0?si+1:order.length,0,'multivideo'); } } else { order=order.filter(k=>k!=='multivideo'); delete hidden.multivideo; } const tab=(!on&&st.tab==='multivideo')?'gallery':st.tab; return {tabFeature:{...st.tabFeature,multivideo:on},tabOrder:order,tabHidden:hidden,tab}; });
+    const toggleAlbumFeature=()=>set(st=>{ const on=!st.tabFeature.album; let order=st.tabOrder.slice(); const hidden={...st.tabHidden}; if(on){ if(!order.includes('album')){ let ai=order.indexOf('multivideo'); if(ai<0)ai=order.indexOf('slideshow'); order.splice(ai>=0?ai+1:order.length,0,'album'); } } else { order=order.filter(k=>k!=='album'); delete hidden.album; } const tab=(!on&&st.tab==='album')?'gallery':st.tab; return {tabFeature:{...st.tabFeature,album:on},tabOrder:order,tabHidden:hidden,tab}; });
+
+    // multi-video
+    const availVideos=(()=>{ const inSel=liveIds.filter(id=>this.imgById(id).type==='video'); const base=inSel.length?inSel:this.IMAGES.filter(im=>im.type==='video').map(im=>im.id); return base; })();
+    const mvOverlay=s.mv.overlay;
+    const mvCells=s.mv.cells.slice(0,s.mv.count).map((c,i)=>({
+      empty:!c.vid, label:c.vid?('IMG_'+c.vid+'.mp4'):'', bigIcon:c.playing?'pause_circle':'play_circle', playIcon:c.playing?'pause':'play_arrow', muteIcon:c.muted?'volume_off':'volume_up', muted:c.muted, playing:c.playing, prog:(c.prog||0)+'%', showOverlay:mvOverlay&&!!c.vid, showControls:mvOverlay&&!!c.vid,
+      tapArea:()=>{ if(!this.state.mv.cells[i].vid){ set(st=>({mv:{...st.mv,picker:i}})); this.mvPing(); return; } if(!this.state.mv.overlay){ this.mvPing(); } else { set(st=>{ const cells=st.mv.cells.slice(); cells[i]={...cells[i],playing:!cells[i].playing}; return {mv:{...st.mv,cells}}; }); this.mvPing(); } },
+      togglePlay:()=>{ set(st=>{ const cells=st.mv.cells.slice(); cells[i]={...cells[i],playing:!cells[i].playing}; return {mv:{...st.mv,cells}}; }); this.mvPing(); },
+      toggleMute:()=>{ set(st=>{ const cells=st.mv.cells.slice(); cells[i]={...cells[i],muted:!cells[i].muted}; return {mv:{...st.mv,cells}}; }); this.mvPing(); },
+      choose:()=>{ set(st=>({mv:{...st.mv,picker:i}})); this.mvPing(); },
+    }));
+    const mvPickerOpen=s.mv.picker!=null;
+    const mvPickerOptions=[{label:'None (clear)',icon:'block',select:()=>set(st=>{ const cells=st.mv.cells.slice(); cells[st.mv.picker]={...cells[st.mv.picker],vid:null,playing:false,prog:0}; return {mv:{...st.mv,cells,picker:null}}; })}].concat(availVideos.map(v=>({label:'IMG_'+v+'.mp4',icon:'movie',select:()=>set(st=>{ const cells=st.mv.cells.slice(); cells[st.mv.picker]={...cells[st.mv.picker],vid:v,playing:true,prog:0}; return {mv:{...st.mv,cells,picker:null}}; })})));
+    const mvClosePicker=()=>set(st=>({mv:{...st.mv,picker:null}}));
+    const mvToggleLandscape=()=>{ set(st=>({mv:{...st.mv,landscape:!st.mv.landscape}})); this.mvPing(); };
+    const mvCountOptions=[1,2,4].map(n=>({label:''+n,active:s.mv.count===n,bg:s.mv.count===n?'var(--secondary-container)':'transparent',color:s.mv.count===n?'var(--on-secondary-container)':'var(--on-surface-variant)',select:()=>set(st=>({mv:{...st.mv,count:n}}))}));
+
+    // viewer
+    const vl=this.liveVL(s); const curId=vl[s.viewerIdx]; const cur=curId?this.imgById(curId):null;
+    const nav2=(d)=>set(st=>{ const l=this.liveVL(st); if(!l.length)return{}; let n=st.viewerIdx+d; if(n<0)n=l.length-1; if(n>=l.length)n=0; return{viewerIdx:n}; });
+    const askDelete=(ids)=>{ if(s.disableEditDelete)return; set({confirm:ids,menu:false}); };
+    const menuAct=(fn)=>()=>{ set({menu:false}); fn&&fn(); };
+    const locked=s.disableEditDelete;
+    const menuItems=[
+      {label:'Share',icon:'share',color:'var(--on-surface)',cursor:'pointer',opacity:'1',action:menuAct(()=>this.showSnack('Sharing '+(cur?('IMG_'+cur.id):'')+'…'))},
+      {label:'Delete',icon:'delete',color:locked?'var(--on-surface-variant)':'var(--error)',cursor:locked?'default':'pointer',opacity:locked?'.4':'1',action:()=>{ if(locked)return; askDelete([curId]); }},
+      {label:'Details',icon:'info',color:'var(--on-surface)',cursor:'pointer',opacity:'1',action:()=>set({menu:false,detailsOpen:true})},
+    ];
+    const detailRows=cur?[{k:'Name',v:'IMG_'+cur.id+'.'+cur.ext},{k:'Type',v:cur.type.toUpperCase()+' · '+cur.ext},{k:'Resolution',v:cur.res},{k:'Size',v:cur.size},{k:'Date taken',v:cur.date},{k:'Folder',v:cur.folder}]:[];
+
+    const hiddenFolders=Object.keys(s.hiddenFolders).map(k=>{ const on=s.hiddenFolders[k]; return {label:k,box:on?'check_box':'check_box_outline_blank',fill:on?'1':'0',color:on?'var(--primary)':'var(--outline)',toggle:()=>set(st=>({hiddenFolders:{...st.hiddenFolders,[k]:!st.hiddenFolders[k]}}))}; });
+
+    const ftOpt=(key,label)=>{ const on=s.favTypes[key]; return {label,box:on?'check_box':'check_box_outline_blank',fill:on?'1':'0',color:on?'var(--primary)':'var(--outline)',toggle:()=>set(st=>({favTypes:{...st.favTypes,[key]:!st.favTypes[key]}}))}; };
+    const favTypeOptions=[ftOpt('photo','Photos'),ftOpt('video','Videos'),ftOpt('gif','GIFs')];
+    const favAll=s.favTypes.photo&&s.favTypes.video&&s.favTypes.gif;
+    const favCount=['photo','video','gif'].filter(k=>s.favTypes[k]).length;
+
+    const speedOptions=this.SPEEDS.map((sp,i)=>({label:i===8?'Custom…':sp.label,active:i===s.speedIdx,select:()=> i===8 ? set({speedMenu:false,customOpen:true,customVal:Math.round(this.state.customMs/1000)}) : set({speedIdx:i,speedMenu:false}) }));
+
+    this._gs=this._gs||{};
+    const gridDown=(e)=>{ this._gs.x=e.clientX; this._gs.y=e.clientY; this._gs.down=true; this._gs.moved=false; };
+    const gridMove=(e)=>{ if(!this._gs.down)return; const dx=Math.abs(e.clientX-(this._gs.x||e.clientX)), dy=Math.abs(e.clientY-(this._gs.y||e.clientY)); if(dx>10||dy>10)this._gs.moved=true; };
+    const gridUp=(e)=>{ this._gs.down=false; if(s.gridMode!=='swipe')return; const dx=e.clientX-(this._gs.x||e.clientX), dy=e.clientY-(this._gs.y||e.clientY); if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)){ this.shuffleGrid(dx<0?1:-1); } };
+    const vwDown=(e)=>{ this._gs.vx=e.clientX; this._gs.vy=e.clientY; this._gs.moved=false; };
+    const vwUp=(e)=>{ const dx=e.clientX-(this._gs.vx||e.clientX), dy=e.clientY-(this._gs.vy||e.clientY); if(Math.abs(dy)>80&&Math.abs(dy)>Math.abs(dx)&&dy<0){ this._gs.moved=true; if(!s.disableSwipeDelete&&!s.disableEditDelete&&curId)set({confirm:[curId]}); return; } if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)){ nav2(dx<0?1:-1); this._gs.moved=true; } };
+    const tapChrome=()=>{ if(this._gs.moved){ this._gs.moved=false; return; } set(st=>({chrome:!st.chrome})); };
+
+    return {
+      theme:s.theme, accent:s.accent, amoledAttr:s.amoled?'on':'off',
+      showGallery:s.tab==='gallery', showFav:s.tab==='fav', showRecent:s.tab==='recent', showSettings:s.tab==='settings',
+      showMulti:s.tab==='multivideo', showAlbumMain:s.tab==='album'&&!s.albumOpen, showAlbumDetail:s.tab==='album'&&!!s.albumOpen,
+      noFolders, hasFolders:!noFolders,
+      columns:s.columns, gridModeIcon:s.gridMode==='swipe'?'swipe':'view_stream',
+      toggleGridMode:()=>set(st=>({gridMode:st.gridMode==='swipe'?'scroll':'swipe'})),
+      gridHint:s.gridMode==='swipe'?'Swipe left / right for a new random set · pinch to change columns':'Scroll for more · pinch to change columns',
+      cycleColumns:()=>set(st=>({columns:st.columns>=6?1:st.columns+1})),
+      shuffle:()=>this.shuffleGrid(1),
+      gridDown, gridMove, gridUp,
+      galleryImages, galleryEmptyTypes, showGrid:!noFolders&&!galleryEmptyTypes,
+      favImages, favEmpty:!noFolders&&favImages.length===0, favHas:!noFolders&&favImages.length>0,
+      favTypeMenuOpen:s.favTypeMenu, toggleFavTypeMenu:()=>set(st=>({favTypeMenu:!st.favTypeMenu})), favTypeOptions,
+      favTypeLabel:favAll?'All types':(favCount+' types'),
+      favWindowLabel:s.favWindow==='all'?'All time':(s.favWindow+' Days'),
+      cycleFavWindow:()=>set(st=>{ const i=this.FAV_WINDOWS.indexOf(st.favWindow); return {favWindow:this.FAV_WINDOWS[(i+1)%this.FAV_WINDOWS.length]}; }),
+      recentImages, recentEmpty:!noFolders&&recentImages.length===0, recentHas:!noFolders&&recentImages.length>0,
+      recentLabel:s.recentWindow+' Days',
+      cycleWindow:()=>set(st=>{ const i=this.REC_WINDOWS.indexOf(st.recentWindow); return {recentWindow:this.REC_WINDOWS[(i+1)%this.REC_WINDOWS.length]}; }),
+      albums, albumImages, albumName:s.albumOpen?s.albumOpen.split('/').pop():'', albumCount:albumDetailIds.length, albumEmpty:albumDetailIds.length===0, closeAlbum:()=>set({albumOpen:null}),
+      mvCells, mvCols:s.mv.count===4?2:1, mvCountOptions, mvMuteAllIcon:s.mv.muteAll?'volume_off':'volume_up',
+      mvPlayAll:()=>set(st=>({mv:{...st.mv,cells:st.mv.cells.map((c,i)=>i<st.mv.count?{...c,playing:true}:c)}})),
+      mvPauseAll:()=>set(st=>({mv:{...st.mv,cells:st.mv.cells.map((c,i)=>i<st.mv.count?{...c,playing:false}:c)}})),
+      mvMuteAll:()=>set(st=>{ const m=!st.mv.muteAll; return {mv:{...st.mv,muteAll:m,cells:st.mv.cells.map((c,i)=>i<st.mv.count?{...c,muted:m}:c)}}; }),
+      mvOverlay, mvLandscape:s.mv.landscape, mvToggleLandscape, mvPickerOpen, mvPickerOptions, mvClosePicker,
+      nav, hints, folderGroups,
+      fileTypeItems, noTypes:availTypes.length===0,
+      toggles,
+      darkSw:sw(s.theme==='dark'), toggleDark:()=>set(st=>({theme:st.theme==='dark'?'light':'dark'})),
+      amoledSw:sw(s.amoled), toggleAmoled:()=>set(st=>({amoled:!st.amoled})),
+      accentList,
+      tabConfig, mvSw:sw(s.tabFeature.multivideo), albumSw:sw(s.tabFeature.album), toggleMvFeature, toggleAlbumFeature,
+      copyFavOn:s.copyFavs, copyFavPath:s.copyFavPath, copyFavSw:sw(s.copyFavs), toggleCopyFavs:()=>set(st=>({copyFavs:!st.copyFavs})), chooseFavFolder:()=>this.showSnack('Pick a folder for favourites…'),
+      selectMode:s.selectMode, selCount:Object.keys(s.selected).length, deleteSelOpacity:s.disableEditDelete?'.4':'1',
+      exitSelect:()=>set({selectMode:false,selected:{}}),
+      favSelected:()=>set(st=>{ const f={...st.favs}; Object.keys(st.selected).forEach(i=>f[i]=true); return {favs:f,selectMode:false,selected:{}}; }),
+      deleteSelected:()=>{ if(s.disableEditDelete)return; const ids=Object.keys(s.selected).map(Number); if(ids.length)set({confirm:ids}); },
+      customOpen:s.customOpen, customVal:s.customVal, setCustomVal:(e)=>this.setState({customVal:e.target.value}), closeCustom:()=>set({customOpen:false}),
+      confirmCustom:()=>{ const v=Math.max(1,parseInt(this.state.customVal)||1); set({customMs:v*1000,customVal:v,speedIdx:8,customOpen:false}); },
+      openHidden:()=>set({hiddenOpen:true}), hiddenOpen:s.hiddenOpen, closeHidden:()=>set({hiddenOpen:false}), hiddenFolders,
+      doExportSettings:()=>this.showSnack('Settings exported to Downloads'),
+      doDownloadFavs:()=>this.showSnack('Zipping '+favImages.length+' favourites…'),
+      doImport:()=>this.showSnack('Choose a backup file to import'),
+      doGithub:()=>this.showSnack('Opening GitHub repository…'),
+      doRate:()=>this.showSnack('Opening Play Store…'),
+      goSettings:()=>set({tab:'settings',viewer:false}), noop:()=>{},
+      viewerOpen:s.viewer, chromeOn:s.chrome,
+      viewerBigIcon:cur?bigIconFor(cur.type):'image', viewerName:cur?('IMG_'+cur.id+'.'+cur.ext):'', viewerRes:cur?cur.res:'',
+      viewerDate:cur?cur.date:'', playIcon:s.playing?'pause':'play_arrow', speedLabel:s.speedIdx===9?'Off':s.speedIdx===8?(Math.round(s.customMs/1000)+'s'):this.SPEEDS[s.speedIdx].label,
+      viewerFavColor:cur&&s.favs[curId]?'var(--fav)':'#fff', viewerFavFill:cur&&s.favs[curId]?'1':'0',
+      togglePlay:()=>set(st=>({playing:!st.playing})),
+      favViewer:()=>set(st=>({favs:{...st.favs,[curId]:!st.favs[curId]}})),
+      closeViewer:()=>{ clearTimeout(this._t); set({viewer:false,playing:false,menu:false,speedMenu:false,tab:'gallery'}); },
+      tapChrome, vwDown, vwUp,
+      menuOpen:s.menu, toggleMenu:()=>set(st=>({menu:!st.menu,speedMenu:false})), menuItems,
+      speedMenuOpen:s.speedMenu, toggleSpeedMenu:()=>set(st=>({speedMenu:!st.speedMenu,menu:false})), speedOptions,
+      detailsOpen:s.detailsOpen, closeDetails:()=>set({detailsOpen:false}), detailRows,
+      confirmOpen:!!(s.confirm&&s.confirm.length), confirmText:(s.confirm&&s.confirm.length>1)?('Delete '+s.confirm.length+' files?'):'Delete this file?', cancelDelete:()=>set({confirm:null}),
+      confirmDelete:()=>{ const ids=s.confirm||[]; this.setState(st=>{ const nd={...st.deleted}; ids.forEach(i=>nd[i]=true); const vl2=(st.viewerList||[]).filter(x=>!nd[x]); const ni=Math.min(st.viewerIdx,vl2.length-1); return {deleted:nd,confirm:null,selected:{},selectMode:false,viewer:st.viewer?vl2.length>0:false,viewerIdx:ni<0?0:ni}; },()=>this.showSnack(ids.length>1?(ids.length+' files deleted'):'File deleted','Undo',()=>{ this.setState(st=>{ const nd={...st.deleted}; ids.forEach(i=>delete nd[i]); return {deleted:nd,snack:null}; }); })); },
+      snackOpen:!!s.snack, snackText:s.snack?s.snack.text:'', snackHasAction:!!(s.snack&&s.snack.action), snackActionLabel:s.snack?s.snack.actionLabel:'', snackAction:()=>{ if(s.snack&&s.snack.action)s.snack.action(); },
+    };
+  }
+  shuffleGrid(dir){ this.setState(st=>({order:[...st.order].sort(()=>Math.random()-0.5),seed:st.seed+dir})); }
+}
+</script>
+</body>
+</html>

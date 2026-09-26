@@ -1,0 +1,13 @@
+# Starter Baseline Profile (HRF). Prefer regenerating via Macrobenchmark later.
+# Keep rules exact — wildcard method suffixes like "foo*" break AGP profgen.
+
+HSPLcom/mousy/windfall/MainActivity;->onCreate(Landroid/os/Bundle;)V
+HSPLcom/mousy/windfall/GalleryApplication;-><init>()V
+HSPLcom/mousy/windfall/GalleryApplication;->newImageLoader(Lcoil3/PlatformContext;)Lcoil3/ImageLoader;
+
+HSPLcom/mousy/windfall/ui/GalleryAppKt;->GalleryApp(Lcom/mousy/windfall/viewmodel/GalleryViewModel;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+HSPLcom/mousy/windfall/ui/navigation/MainScaffoldKt;->MainScaffold(Lcom/mousy/windfall/data/model/AppTab;Ljava/util/List;ZZZLkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;ZLkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+HSPLcom/mousy/windfall/ui/components/MediaGridKt;->MediaGrid(Ljava/util/List;ILcom/mousy/windfall/data/model/GridMode;Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ZZLandroidx/compose/ui/Modifier;Landroidx/compose/runtime/Composer;III)V
+HSPLcom/mousy/windfall/ui/screens/GalleryScreenKt;->GalleryScreen(Ljava/util/List;ILcom/mousy/windfall/data/model/GridMode;ZLjava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ZZLkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Landroidx/compose/runtime/Composer;III)V
+
+HSPLcom/mousy/windfall/viewmodel/GalleryViewModel;-><init>(Landroid/app/Application;)V

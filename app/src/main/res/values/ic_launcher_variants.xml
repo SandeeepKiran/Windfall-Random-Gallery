@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Windrose family: deep teal plate behind the compass-over-grid foregrounds -->
+    <color name="ic_windrose_background">#0E3A43</color>
+    <!-- Mono icon: pale tonal plate, like a permanently themed icon -->
+    <color name="ic_mono_background">#DFE5E0</color>
+</resources>

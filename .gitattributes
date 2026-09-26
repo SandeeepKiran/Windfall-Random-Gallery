@@ -1,0 +1,7 @@
+Design_Files/** linguist-documentation
+*.html linguist-documentation
+
+# Keep POSIX wrapper LF so Linux CI can execute it.
+gradlew text eol=lf
+gradlew.bat text eol=crlf
+gradle/wrapper/gradle-wrapper.jar binary

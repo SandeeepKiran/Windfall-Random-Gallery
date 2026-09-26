@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive foreground (108×108). Keep content in the ~72dp safe zone.
+  Brand motif: 3×3 gallery grid, rose favourite tile + heart (Design_Files).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Soft plate (bounds ~20–88) for contrast on #191113 adaptive background -->
+    <path
+        android:fillColor="#2B292E"
+        android:pathData="M30,20 h48 a10,10 0 0 1 10,10 v48 a10,10 0 0 1 -10,10 h-48 a10,10 0 0 1 -10,-10 v-48 a10,10 0 0 1 10,-10 z" />
+
+    <!--
+      3×3 cells: size 16, gap 4, origin 26.
+      Rounded-rect path: M(x+r,y) h(w-2r) a… (r=4 → straight run 8).
+    -->
+    <!-- Row 0 -->
+    <path
+        android:fillColor="#3A363C"
+        android:pathData="M30,26 h8 a4,4 0 0 1 4,4 v8 a4,4 0 0 1 -4,4 h-8 a4,4 0 0 1 -4,-4 v-8 a4,4 0 0 1 4,-4 z" />
+    <path
+        android:fillColor="#3A363C"
+        android:pathData="M50,26 h8 a4,4 0 0 1 4,4 v8 a4,4 0 0 1 -4,4 h-8 a4,4 0 0 1 -4,-4 v-8 a4,4 0 0 1 4,-4 z" />
+    <path
+        android:fillColor="#FFB1C7"
+        android:pathData="M70,26 h8 a4,4 0 0 1 4,4 v8 a4,4 0 0 1 -4,4 h-8 a4,4 0 0 1 -4,-4 v-8 a4,4 0 0 1 4,-4 z" />
+
+    <!-- Row 1 -->
+    <path
+        android:fillColor="#3A363C"
+        android:pathData="M30,46 h8 a4,4 0 0 1 4,4 v8 a4,4 0 0 1 -4,4 h-8 a4,4 0 0 1 -4,-4 v-8 a4,4 0 0 1 4,-4 z" />
+    <path
+        android:fillColor="#3A363C"
+        android:pathData="M50,46 h8 a4,4 0 0 1 4,4 v8 a4,4 0 0 1 -4,4 h-8 a4,4 0 0 1 -4,-4 v-8 a4,4 0 0 1 4,-4 z" />
+    <path
+        android:fillColor="#3A363C"
+        android:pathData="M70,46 h8 a4,4 0 0 1 4,4 v8 a4,4 0 0 1 -4,4 h-8 a4,4 0 0 1 -4,-4 v-8 a4,4 0 0 1 4,-4 z" />
+
+    <!-- Row 2 -->
+    <path
+        android:fillColor="#3A363C"
+        android:pathData="M30,66 h8 a4,4 0 0 1 4,4 v8 a4,4 0 0 1 -4,4 h-8 a4,4 0 0 1 -4,-4 v-8 a4,4 0 0 1 4,-4 z" />
+    <path
+        android:fillColor="#3A363C"
+        android:pathData="M50,66 h8 a4,4 0 0 1 4,4 v8 a4,4 0 0 1 -4,4 h-8 a4,4 0 0 1 -4,-4 v-8 a4,4 0 0 1 4,-4 z" />
+    <path
+        android:fillColor="#3A363C"
+        android:pathData="M70,66 h8 a4,4 0 0 1 4,4 v8 a4,4 0 0 1 -4,4 h-8 a4,4 0 0 1 -4,-4 v-8 a4,4 0 0 1 4,-4 z" />
+
+    <!-- Favourite heart centered in rose tile (bounds 66–82, 26–42 → center 74,34) -->
+    <path
+        android:fillColor="#54182F"
+        android:pathData="M74,39.8 C74,39.8 68.2,35.1 68.2,31.8 C68.2,29.9 69.5,28.6 71.2,28.6 C72.4,28.6 73.4,29.3 74,30.4 C74.6,29.3 75.6,28.6 76.8,28.6 C78.5,28.6 79.8,29.9 79.8,31.8 C79.8,35.1 74,39.8 74,39.8 Z" />
+</vector>
