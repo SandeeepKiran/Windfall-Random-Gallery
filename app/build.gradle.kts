@@ -21,8 +21,26 @@ android {
         }
     }
 
+    // Release signing comes from ~/.gradle/gradle.properties locally or env vars on CI, so the
+    // keystore and its passwords never enter the repo. Without them, release builds come out unsigned.
+    fun signingValue(name: String): String? =
+        (project.findProperty(name) as String?) ?: System.getenv(name)
+    val releaseKeystore = signingValue("WINDFALL_KEYSTORE")?.let { file(it) }?.takeIf { it.exists() }
+
+    signingConfigs {
+        if (releaseKeystore != null) {
+            create("release") {
+                storeFile = releaseKeystore
+                storePassword = signingValue("WINDFALL_KEYSTORE_PASSWORD")
+                keyAlias = signingValue("WINDFALL_KEY_ALIAS")
+                keyPassword = signingValue("WINDFALL_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (releaseKeystore != null) signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

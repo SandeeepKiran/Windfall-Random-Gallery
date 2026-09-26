@@ -1,5 +1,6 @@
-name: Release debug APK
+name: Release signed APK
 
+# Push a tag like v1.1.0 and this builds a signed release APK and attaches it to a GitHub Release.
 on:
   push:
     tags:
@@ -18,9 +19,26 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
-      - name: Build debug APK
-        run: ./gradlew assembleDebug
-      - name: Publish APK
+
+      # The keystore is stored as a base64 GitHub secret, never in the repo.
+      - name: Restore signing keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.WINDFALL_KEYSTORE_BASE64 }}
+        run: echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/windfall-release.jks"
+
+      - name: Build signed release APK
+        env:
+          WINDFALL_KEYSTORE: ${{ runner.temp }}/windfall-release.jks
+          WINDFALL_KEYSTORE_PASSWORD: ${{ secrets.WINDFALL_KEYSTORE_PASSWORD }}
+          WINDFALL_KEY_ALIAS: windfall
+          WINDFALL_KEY_PASSWORD: ${{ secrets.WINDFALL_KEYSTORE_PASSWORD }}
+        run: |
+          ./gradlew assembleRelease --no-daemon
+          cp app/build/outputs/apk/release/app-release.apk "Windfall-${GITHUB_REF_NAME}.apk"
+
+      - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          files: app/build/outputs/apk/debug/app-debug.apk
+          name: Windfall ${{ github.ref_name }}
+          generate_release_notes: true
+          files: Windfall-${{ github.ref_name }}.apk
