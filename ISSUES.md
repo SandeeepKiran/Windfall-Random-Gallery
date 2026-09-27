@@ -74,9 +74,11 @@
   read-only token, and deletes the keystore before the third-party release step.
 - First unit tests: 53 JVM tests in `app/src/test` (deck, sampling, paging, thumbnails, settings).
 
-## Status after Sep 27 session — builds, unit tests pass; NOT yet verified on the phone.
-- [ ] Verify on the Redmi: swipe back never changes a seen page; slideshow start; scroll back
-      shows thumbnails instantly (`adb logcat | Select-String "RealImageLoader"` → MEMORY_CACHE).
+## Status after Sep 27 session — builds, unit tests pass, verified on the phone (see below).
+- [x] Verified on the Redmi K20 Pro (Android 11, "Windfall Debug" pointed at test photos only):
+      swiping 2 pages forward and back showed identical pages; the slideshow started at page 2's
+      top-left and moved on every ~5.2 s in page order; scrolling back up 5 screens in scroll mode
+      made 111 thumbnail requests, all 111 from memory (none fetched again).
 - [ ] Item 3 of Sep 1 (viewer vertical swipes) is still REOPENED — untouched this session.
 - [x] Decided (Sandeep): Delete now moves files to Android's trash (MediaStore trash request,
       Android's own confirmation, Undo restores). Tested on the emulator: single, multi-select,
@@ -129,7 +131,10 @@ or another app, not by random download file names. Controls that hide after abou
 - [x] Exit and Back leave the wall (players 0, focus released, rotation back to normal).
 - [x] Home frees all players; return resumes positions; reopening plays everything again.
 - [x] Photo picker (ordered) and the in-app picker; the signed release build too.
-- [ ] On the Redmi: "Other apps…" should list Gallery / Files / Photos (the emulator has only one
-      app for it, so Android skipped the question); 4 real HD videos at once (decoder limits).
+- [x] On the Redmi K20 Pro (Android 11): 4 and then 6 full-HD (1080p30) videos at once, all in
+      real time and in step, all on the hardware decoder (`OMX.qcom.video.decoder.avc`, no
+      fallback, no errors). Home freed all 6 players; return resumed them; Back left the wall.
+- [ ] "Other apps…" and "Photo picker" on the Redmi: Sandeep checks these himself, because both
+      show his own media.
 - [ ] Not saved across app restarts, on purpose (picked videos can only be read while the app
       runs). Revisit if Sandeep wants the layout remembered.
