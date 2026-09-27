@@ -1,7 +1,6 @@
 package com.mousy.windfall.data.model
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.PhotoAlbum
@@ -19,18 +18,6 @@ enum class AppTab(val label: String, val icon: ImageVector, val locked: Boolean 
     ALBUM("Albums", Icons.Default.PhotoAlbum),
     MULTIVIDEO("Videos", Icons.Default.VideoLibrary),
     SETTINGS("More", Icons.Default.MoreHoriz, locked = true);
-
-    /** Compact nav label for NavigationBar / suite (icon-first but not empty). */
-    val shortLabel: String
-        get() = when (this) {
-            FAV -> "Favs"
-            RECENT -> "Recent"
-            GALLERY -> "Gallery"
-            SLIDESHOW -> "Show"
-            ALBUM -> "Albums"
-            MULTIVIDEO -> "Videos"
-            SETTINGS -> "More"
-        }
 
     val key: String get() = name.lowercase()
 
@@ -50,14 +37,7 @@ enum class AppTab(val label: String, val icon: ImageVector, val locked: Boolean 
     }
 }
 
-enum class GridMode {
-    SWIPE, SCROLL;
-
-    val icon get() = when (this) {
-        SWIPE -> Icons.Default.Shuffle
-        SCROLL -> Icons.AutoMirrored.Filled.ViewList
-    }
-}
+enum class GridMode { SWIPE, SCROLL }
 
 enum class ThemeMode { LIGHT, DARK }
 
@@ -141,6 +121,11 @@ data class AppSettings(
     val copyFavs: Boolean = false,
     val copyFavPath: String = "",
     val copyFavTreeUri: String = "",
+    /**
+     * Addresses of the copies Windfall itself made in the Favourites folder. The ONLY files the
+     * app will ever remove from that folder; anything else in it belongs to the user.
+     */
+    val favCopyUris: Set<String> = emptySet(),
     /** Favourites tab ignores the folder selection and shows favourites from anywhere. */
     val showAllFavourites: Boolean = false,
     val hiddenFolders: Map<String, Boolean> = defaultHiddenFolders(),
@@ -179,11 +164,6 @@ data class AppSettings(
      */
     val farmFingerprint: String = "",
     val farmPosition: Int = 0,
-    /**
-     * Exponential moving average of how many items get viewed per session. Drives how big
-     * a random slice of the library the gallery prepares up front.
-     */
-    val avgViewedPerSession: Float = SamplingDefaults.INITIAL_AVG_VIEWED,
 ) {
     /** Effective “delete disabled” - either dedicated or legacy toggle. */
     val deletesDisabled: Boolean get() = disableDeleteOptions || disableEditDelete

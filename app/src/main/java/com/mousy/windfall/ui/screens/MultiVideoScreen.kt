@@ -25,8 +25,8 @@ import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.ScreenRotation
-import androidx.compose.material.icons.filled.VolumeOff
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -154,7 +154,7 @@ fun MultiVideoScreen(
                         }
                         OutlinedButton(onClick = onMuteAll) {
                             Icon(
-                                if (state.muteAll) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                                if (state.muteAll) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
                                 contentDescription = "Mute all",
                             )
                         }
@@ -307,7 +307,7 @@ private fun MultiVideoCellCard(
                     }
                 } else {
                     MultiVideoPlayer(
-                        uri = videoUri!!,
+                        uri = videoUri,
                         muted = cell.muted,
                         playing = cell.playing,
                         onProgress = onProgress,
@@ -338,7 +338,7 @@ private fun MultiVideoCellCard(
                         Icon(if (cell.playing) Icons.Default.Pause else Icons.Default.PlayArrow, null)
                     }
                     IconButton(onClick = onToggleMute) {
-                        Icon(if (cell.muted) Icons.Default.VolumeOff else Icons.Default.VolumeUp, null)
+                        Icon(if (cell.muted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp, null)
                     }
                     LinearProgressIndicator(
                         progress = { cell.progress },

@@ -53,6 +53,10 @@ fun AlbumsScreen(
     onSetColumns: (Int) -> Unit,
     onGoSettings: () -> Unit,
     thumbnailPadding: Boolean = true,
+    /** Where the open album's grid is scrolled to; kept by the ViewModel. */
+    pageStart: Int = 0,
+    /** (top-left item, last visible item, settled). */
+    onScrolled: (Int, Int, Boolean) -> Unit = { _, _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -96,6 +100,8 @@ fun AlbumsScreen(
                     onSwipeShuffle = {},
                     onSetColumns = onSetColumns,
                     thumbnailPadding = thumbnailPadding,
+                    pageStart = pageStart,
+                    onScrolled = onScrolled,
                     modifier = Modifier.weight(1f),
                 )
             }

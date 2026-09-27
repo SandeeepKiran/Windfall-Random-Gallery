@@ -154,22 +154,33 @@ fun GalleryApp(
         ThumbSpec.gridBucket(state.settings.columns, landscape, density)
     }
 
+    // Source folders are only ever read, so only read access is kept.
     val safFolderLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree(),
     ) { uri ->
         uri ?: return@rememberLauncherForActivityResult
-        val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-        context.contentResolver.takePersistableUriPermission(uri, flags)
-        viewModel.addSafTreeUri(uri.toString())
+        runCatching {
+            context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }.onSuccess {
+            viewModel.addSafTreeUri(uri.toString())
+        }.onFailure {
+            viewModel.showSnack("Couldn't get lasting access to that folder")
+        }
     }
 
+    // The Favourites folder is written to (copies go in and out), so it needs write access.
     val favFolderLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree(),
     ) { uri ->
         uri ?: return@rememberLauncherForActivityResult
         val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-        context.contentResolver.takePersistableUriPermission(uri, flags)
-        viewModel.setCopyFavFolder(uri.toString(), uri.lastPathSegment ?: uri.toString())
+        runCatching {
+            context.contentResolver.takePersistableUriPermission(uri, flags)
+        }.onSuccess {
+            viewModel.setCopyFavFolder(uri.toString(), uri.lastPathSegment ?: uri.toString())
+        }.onFailure {
+            viewModel.showSnack("Couldn't get lasting access to that folder")
+        }
     }
 
     val importLauncher = rememberLauncherForActivityResult(
@@ -208,7 +219,7 @@ fun GalleryApp(
         context.startActivity(Intent.createChooser(share, "Save or share zip"))
     }
 
-    var pendingPickerIndex = remember { intArrayOf(-1) }
+    val pendingPickerIndex = remember { intArrayOf(-1) }
 
     val multiPickGallery = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
@@ -226,12 +237,8 @@ fun GalleryApp(
     ) { uri ->
         val idx = pendingPickerIndex[0]
         if (uri == null || idx < 0) return@rememberLauncherForActivityResult
-        runCatching {
-            context.contentResolver.takePersistableUriPermission(
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION,
-            )
-        }
+        // No lasting permission: Multi-Video picks aren't saved, and Android caps how many an
+        // app may hold, dropping the OLDEST first, which would be the source folders.
         val mime = context.contentResolver.getType(uri).orEmpty()
         val name = uri.lastPathSegment
         viewModel.assignMultiVideoUri(idx, uri.toString(), name, mime.startsWith("audio/"))
@@ -255,7 +262,7 @@ fun GalleryApp(
         onRequestOrientation(orientation)
     }
 
-    fun handleItemClick(item: MediaItem, list: List<MediaItem>, fromGallery: Boolean = false) {
+    fun handleItemClick(item: MediaItem, list: List<MediaItem>, sourceTab: AppTab) {
         if (state.selectMode) {
             viewModel.toggleSelect(item.stableKey)
             return
@@ -264,7 +271,7 @@ fun GalleryApp(
             keys = list.map { it.stableKey },
             index = list.indexOfFirst { it.stableKey == item.stableKey }.coerceAtLeast(0),
             slideshowMode = false,
-            fromGallery = fromGallery,
+            sourceTab = sourceTab,
         )
     }
 
@@ -297,13 +304,7 @@ fun GalleryApp(
                 onExport = {
                     viewModel.downloadSelectedZip { uri -> uri?.let(shareZip) }
                 },
-                onDelete = {
-                    if (state.settings.deletesDisabled) {
-                        viewModel.deleteSelected()
-                    } else {
-                        viewModel.deleteSelected()
-                    }
-                },
+                onDelete = viewModel::deleteSelected,
             )
         },
         snackbarHost = {
@@ -357,7 +358,7 @@ fun GalleryApp(
                     onToggleGridMode = viewModel::toggleGridMode,
                     onCycleColumns = viewModel::cycleColumns,
                     onShuffle = { viewModel.shuffleGrid() },
-                    onItemClick = { handleItemClick(it, state.gallery, fromGallery = true) },
+                    onItemClick = { handleItemClick(it, state.gallery, AppTab.GALLERY) },
                     onItemDoubleTap = {
                         GalleryHaptics.confirm(view, state.settings.hapticsEnabled)
                         viewModel.toggleFavourite(it.stableKey)
@@ -367,7 +368,9 @@ fun GalleryApp(
                     onSetColumns = viewModel::setColumns,
                     pageStart = state.pageCursors[AppTab.GALLERY] ?: 0,
                     onPageGeometryChanged = viewModel::onPageGeometryChanged,
-                    onReachedEnd = viewModel::extendSampleIfNeeded,
+                    onScrolled = { top, last, settled ->
+                        viewModel.onGridScrolled(AppTab.GALLERY, top, last, settled)
+                    },
                     onGoSettings = { viewModel.selectTab(AppTab.SETTINGS) },
                 )
                 AppTab.FAV -> FavouritesScreen(
@@ -384,13 +387,16 @@ fun GalleryApp(
                     onSwipeShuffle = viewModel::onGridSwipe,
                     pageStart = state.pageCursors[AppTab.FAV] ?: 0,
                     onPageGeometryChanged = viewModel::onPageGeometryChanged,
+                    onScrolled = { top, last, settled ->
+                        viewModel.onGridScrolled(AppTab.FAV, top, last, settled)
+                    },
                     hapticsEnabled = state.settings.hapticsEnabled,
                     showAllFolders = state.settings.showAllFavourites,
                     onToggleAllFolders = viewModel::toggleShowAllFavourites,
                     onToggleFavTypeMenu = viewModel::toggleFavTypeMenu,
                     onToggleFavType = viewModel::toggleFavType,
                     onSelectFavWindow = viewModel::setFavWindow,
-                    onItemClick = { handleItemClick(it, state.favourites) },
+                    onItemClick = { handleItemClick(it, state.favourites, AppTab.FAV) },
                     onItemDoubleTap = {
                         GalleryHaptics.confirm(view, state.settings.hapticsEnabled)
                         viewModel.toggleFavourite(it.stableKey)
@@ -413,11 +419,14 @@ fun GalleryApp(
                     onSwipeShuffle = viewModel::onGridSwipe,
                     pageStart = state.pageCursors[AppTab.RECENT] ?: 0,
                     onPageGeometryChanged = viewModel::onPageGeometryChanged,
+                    onScrolled = { top, last, settled ->
+                        viewModel.onGridScrolled(AppTab.RECENT, top, last, settled)
+                    },
                     hapticsEnabled = state.settings.hapticsEnabled,
                     onToggleTypeMenu = viewModel::toggleRecentTypeMenu,
                     onToggleType = viewModel::toggleRecentType,
                     onSelectWindow = viewModel::setRecentWindow,
-                    onItemClick = { handleItemClick(it, state.recent) },
+                    onItemClick = { handleItemClick(it, state.recent, AppTab.RECENT) },
                     onItemDoubleTap = {
                         GalleryHaptics.confirm(view, state.settings.hapticsEnabled)
                         viewModel.toggleFavourite(it.stableKey)
@@ -454,8 +463,12 @@ fun GalleryApp(
                     thumbnailPadding = state.settings.thumbnailPadding,
                     onOpenAlbum = viewModel::openAlbum,
                     onCloseAlbum = viewModel::closeAlbum,
-                    onShuffle = { viewModel.shuffleGrid() },
-                    onItemClick = { handleItemClick(it, state.albumDetail) },
+                    onShuffle = viewModel::shuffleAlbum,
+                    pageStart = state.pageCursors[AppTab.ALBUM] ?: 0,
+                    onScrolled = { top, last, settled ->
+                        viewModel.onGridScrolled(AppTab.ALBUM, top, last, settled)
+                    },
+                    onItemClick = { handleItemClick(it, state.albumDetail, AppTab.ALBUM) },
                     onItemDoubleTap = { viewModel.toggleFavourite(it.stableKey) },
                     onItemLongPress = { viewModel.enterSelectMode(it.stableKey) },
                     onSetColumns = viewModel::setColumns,
@@ -511,12 +524,10 @@ fun GalleryApp(
                     onAddSafFolder = { safFolderLauncher.launch(null) },
                     onResetSettings = viewModel::requestResetSettings,
                     onShareLogs = {
-                        LogCapture.captureToCache(context).onSuccess { file ->
+                        viewModel.captureLogs { file ->
                             context.startActivity(
                                 Intent.createChooser(LogCapture.shareIntent(context, file), "Share log"),
                             )
-                        }.onFailure {
-                            viewModel.showSnack(it.message ?: "Could not capture log")
                         }
                     },
                     onOpenGithub = {

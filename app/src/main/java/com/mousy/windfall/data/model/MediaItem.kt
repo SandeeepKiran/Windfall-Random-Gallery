@@ -42,4 +42,17 @@ data class MediaItem(
         // Guard against toInt() overflow on pathological timestamps
         return days.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
     }
+
+    companion object {
+        /**
+         * The document address inside a [stableKey] of a file from an added (SAF) folder, or
+         * null for any other key. Those files carry negative ids; MediaStore ids are positive.
+         */
+        fun uriOfSafKey(key: String): String? {
+            val separator = key.indexOf('_')
+            if (separator <= 0) return null
+            val id = key.substring(0, separator).toLongOrNull() ?: return null
+            return if (id < 0) key.substring(separator + 1) else null
+        }
+    }
 }

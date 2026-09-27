@@ -49,6 +49,8 @@ fun FavouritesScreen(
     /** Window position when swipe-paging this tab's list. */
     pageStart: Int = 0,
     onPageGeometryChanged: (Int, Int) -> Unit = { _, _ -> },
+    /** Scroll mode: (top-left item, last visible item, settled). */
+    onScrolled: (Int, Int, Boolean) -> Unit = { _, _, _ -> },
     hapticsEnabled: Boolean = true,
     thumbnailPadding: Boolean = true,
     modifier: Modifier = Modifier,
@@ -106,6 +108,7 @@ fun FavouritesScreen(
                 hapticsEnabled = hapticsEnabled,
                 pageStart = pageStart,
                 onPageGeometryChanged = onPageGeometryChanged,
+                onScrolled = onScrolled,
                 modifier = Modifier.weight(1f),
             )
         }

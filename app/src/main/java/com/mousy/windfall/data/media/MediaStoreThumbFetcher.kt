@@ -1,6 +1,7 @@
 package com.mousy.windfall.data.media
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.Point
 import android.os.CancellationSignal
 import android.provider.DocumentsContract
@@ -15,6 +16,13 @@ import coil3.fetch.Fetcher
 import coil3.fetch.ImageFetchResult
 import coil3.request.Options
 import coil3.size.pxOrElse
+import com.mousy.windfall.ui.components.ThumbSpec
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
@@ -48,20 +56,29 @@ class MediaStoreThumbFetcher(
         val h = options.size.height.pxOrElse { 0 }
         if (w <= 0 || h <= 0) return null
         val resolver = context.contentResolver
+        // Ask for twice the tile. loadThumbnail() shrinks by the whole factor that FITS the box,
+        // so a request for exactly the tile leaves the short side of any non-square photo below
+        // the tile (256 x 256 came back as ~286 x 214). Coil then judged the cached copy too small
+        // and fetched it again every time the tile reappeared: the "re-rendering" while scrolling.
+        val ask = w * OVERSAMPLE to h * OVERSAMPLE
         val bitmap = try {
-            if (DocumentsContract.isDocumentUri(context, uri)) {
-                DocumentsContract.getDocumentThumbnail(resolver, uri, Point(w, h), CancellationSignal())
-            } else {
-                resolver.loadThumbnail(uri, Size(w, h), CancellationSignal())
+            withCancellationSignal { signal ->
+                if (DocumentsContract.isDocumentUri(context, uri)) {
+                    DocumentsContract.getDocumentThumbnail(resolver, uri, Point(ask.first, ask.second), signal)
+                } else {
+                    resolver.loadThumbnail(uri, Size(ask.first, ask.second), signal)
+                }
             }
         } catch (ce: CancellationException) {
             throw ce
         } catch (_: Throwable) {
+            // A tile that scrolled away mustn't fall through to a full decode of the original.
+            currentCoroutineContext().ensureActive()
             // Corrupt file, pending item, no system thumb… let Coil decode the original.
             null
         } ?: return null
         return ImageFetchResult(
-            image = bitmap.asImage(),
+            image = bitmap.fittedTo(w, h).asImage(),
             isSampled = true, // a downscaled preview, never the full-resolution image
             dataSource = DataSource.DISK,
         )
@@ -88,6 +105,50 @@ class MediaStoreThumbFetcher(
             const val MAX_THUMB_REQUEST_PX = 512
         }
     }
+
+    private companion object {
+        const val OVERSAMPLE = 2
+    }
+}
+
+/**
+ * Rescales to exactly cover a [width]×[height] tile (see [ThumbSpec.fillSize]) so Coil's cache
+ * accepts it on the next lookup — and so the cache holds 2–3x more tiles than the raw system
+ * thumbnails, which are larger than a grid tile.
+ */
+private fun Bitmap.fittedTo(width: Int, height: Int): Bitmap {
+    val (targetW, targetH) = ThumbSpec.fillSize(this.width, this.height, width, height)
+    if (kotlin.math.abs(this.width - targetW) <= 1 && kotlin.math.abs(this.height - targetH) <= 1) {
+        return this
+    }
+    val scaled = Bitmap.createScaledBitmap(this, targetW, targetH, true)
+    // The system copy is ours alone (loadThumbnail hands back a fresh bitmap); free it now
+    // rather than waiting for the GC.
+    if (scaled !== this) recycle()
+    return scaled
+}
+
+/**
+ * Runs a blocking platform call with a [CancellationSignal] that fires when this coroutine is
+ * cancelled. Coil cancels a tile's request when the tile scrolls off screen, but the Binder call
+ * underneath kept going to the end, so a fast fling queued up dozens of thumbnails nobody would
+ * see and delayed the ones on screen.
+ */
+private suspend fun <T> withCancellationSignal(block: (CancellationSignal) -> T): T = coroutineScope {
+    val signal = CancellationSignal()
+    // Only waits. On cancellation it wakes on another thread and cancels the call in flight.
+    val canceller = launch(start = CoroutineStart.UNDISPATCHED) {
+        try {
+            awaitCancellation()
+        } finally {
+            signal.cancel()
+        }
+    }
+    try {
+        block(signal)
+    } finally {
+        canceller.cancel()
+    }
 }
 
 /**
@@ -98,9 +159,11 @@ class MediaStoreThumbFetcher(
 fun warmSystemThumbnail(context: Context, uri: android.net.Uri, px: Int): Boolean = try {
     val resolver = context.contentResolver
     if (DocumentsContract.isDocumentUri(context, uri)) {
-        DocumentsContract.getDocumentThumbnail(resolver, uri, Point(px, px), null) != null
+        val thumb = DocumentsContract.getDocumentThumbnail(resolver, uri, Point(px, px), null)
+        thumb?.recycle()
+        thumb != null
     } else {
-        resolver.loadThumbnail(uri, Size(px, px), null)
+        resolver.loadThumbnail(uri, Size(px, px), null).recycle()
         true
     }
 } catch (_: Throwable) {

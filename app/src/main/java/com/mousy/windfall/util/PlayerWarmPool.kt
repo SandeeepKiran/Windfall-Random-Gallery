@@ -40,7 +40,9 @@ object PlayerWarmPool {
             .setBufferDurationsMs(MIN_BUFFER_MS, MAX_BUFFER_MS, PLAYBACK_BUFFER_MS, REBUFFER_MS)
             .setPrioritizeTimeOverSizeThresholds(true)
             .build()
-        return ExoPlayer.Builder(context)
+        // Application context: warm players live in this process-wide pool and must never
+        // hold on to an Activity.
+        return ExoPlayer.Builder(context.applicationContext)
             .setLoadControl(loadControl)
             .build()
             .apply { setSeekParameters(SeekParameters.EXACT) }

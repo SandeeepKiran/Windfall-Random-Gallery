@@ -75,18 +75,22 @@ import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import coil3.size.Precision
+import coil3.size.Scale
 import coil3.size.Size
 import coil3.video.preferVideoFrameEmbeddedThumbnailKey
 import coil3.video.videoFrameMillis
 import com.mousy.windfall.data.model.GridMode
 import com.mousy.windfall.data.model.MediaItem
 import com.mousy.windfall.data.model.MediaType
+import com.mousy.windfall.data.model.PageWindow
 import com.mousy.windfall.ui.theme.FavouriteHeart
 import com.mousy.windfall.util.GalleryHaptics
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -98,8 +102,6 @@ private const val MAX_COLUMNS = 6
 private const val COMMIT_FRACTION = 0.28f
 /** px/s — a quick flick commits the page even on a short drag. */
 private const val FLING_COMMIT_VELOCITY = 1_100f
-/** Roughly a screen and a half of tiles decoded below the fold while scrolling. */
-private const val SCROLL_PREFETCH_AHEAD = 30
 
 /**
  * Page settle: critically damped so the strip glides to rest without bounce or cut.
@@ -128,9 +130,16 @@ fun MediaGrid(
     onSetColumns: (Int) -> Unit,
     thumbnailPadding: Boolean = true,
     hapticsEnabled: Boolean = true,
-    onReachedEnd: (Int) -> Unit = {},
-    /** First item of the visible page — a window into [items] (swipe mode only). */
+    /**
+     * Index of the top-left item the grid should show: the page window in swipe mode, the item
+     * to scroll to in scroll mode. Kept by the ViewModel so it survives tab switches.
+     */
     pageStart: Int = 0,
+    /**
+     * Scroll mode reports (top-left item, last visible item, settled) as the user scrolls;
+     * "settled" is true once motion stops.
+     */
+    onScrolled: (Int, Int, Boolean) -> Unit = { _, _, _ -> },
     /** Reports (page capacity, thumb bucket px) so the ViewModel can stride and warm caches. */
     onPageGeometryChanged: (Int, Int) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
@@ -145,7 +154,6 @@ fun MediaGrid(
     val thumbPx = remember(columns, landscape, density) {
         ThumbSpec.gridBucket(columns, landscape, density)
     }
-    val gridState = rememberLazyGridState()
 
     // Pinch with 2+ fingers only — does not consume single-finger scroll/swipe.
     // Keyed on Unit so a column change mid-pinch doesn't restart the gesture; the target is
@@ -222,8 +230,6 @@ fun MediaGrid(
         }
         LaunchedEffect(pageCapacity, thumbPx) { onPageGeometryChanged(pageCapacity, thumbPx) }
 
-        val context = LocalContext.current
-
         if (gridMode == GridMode.SWIPE && boundedHeight) {
             SwipePagedGrid(
                 items = items,
@@ -246,52 +252,140 @@ fun MediaGrid(
                     .then(pinchModifier),
             )
         } else {
-            LaunchedEffect(gridState, items, thumbPx) {
-                val loader = SingletonImageLoader.get(context)
-                snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }
-                    .distinctUntilChanged()
-                    .collect { lastVisible ->
-                        onReachedEnd(lastVisible)
-                        // Decode the rows just below the fold so scrolling doesn't reveal
-                        // empty tiles that only start loading once they're on screen.
-                        val from = lastVisible + 1
-                        val to = (lastVisible + SCROLL_PREFETCH_AHEAD)
-                            .coerceAtMost(items.lastIndex)
-                        for (i in from..to) {
-                            val next = items[i]
-                            if (next.mediaType == MediaType.AUDIO) continue
-                            loader.enqueue(gridThumbRequest(context, next, thumbPx))
-                        }
-                    }
-            }
-
-            LazyVerticalGrid(
-                state = gridState,
-                columns = GridCells.Fixed(cols),
+            ScrollGrid(
+                items = items,
+                pageStart = pageStart,
+                cols = cols,
+                thumbPx = thumbPx,
+                hSpacing = hSpacing,
+                vSpacing = vSpacing,
+                thumbnailPadding = thumbnailPadding,
+                favouriteKeys = favouriteKeys,
+                selectedKeys = selectedKeys,
+                onItemClick = onItemClick,
+                onItemDoubleTap = onItemDoubleTap,
+                onItemLongPress = onItemLongPress,
+                onScrolled = onScrolled,
                 modifier = Modifier
                     .fillMaxSize()
                     .then(pinchModifier),
-                contentPadding = if (thumbnailPadding) {
-                    PaddingValues(horizontal = 6.dp, vertical = 4.dp)
-                } else {
-                    PaddingValues(0.dp)
-                },
-                horizontalArrangement = Arrangement.spacedBy(hSpacing),
-                verticalArrangement = Arrangement.spacedBy(vSpacing),
-            ) {
-                items(items, key = { it.stableKey }) { item ->
-                    MediaGridCell(
-                        item = item,
-                        thumbPx = thumbPx,
-                        isFavourite = favouriteKeys.contains(item.stableKey),
-                        isSelected = selectedKeys.contains(item.stableKey),
-                        rounded = thumbnailPadding,
-                        onClick = { onItemClick(item) },
-                        onDoubleTap = { onItemDoubleTap(item) },
-                        onLongPress = { onItemLongPress(item) },
-                    )
+            )
+        }
+    }
+}
+
+/**
+ * SCROLL mode. Two things keep fast scrolling smooth:
+ *  - No decoding competes with the tiles on screen while the list moves. The lazy grid already
+ *    composes the next row ahead; extra look-ahead only happens once the list comes to rest.
+ *    The old version queued 30 thumbnails on every row change of a fling, re-queuing the same
+ *    ones over and over, and those fought the visible tiles for decode threads.
+ *  - Tile requests and look-ahead requests are the same request ([gridThumbRequest]), so what
+ *    was decoded once is a memory-cache hit when it scrolls back into view.
+ */
+@Composable
+private fun ScrollGrid(
+    items: List<MediaItem>,
+    pageStart: Int,
+    cols: Int,
+    thumbPx: Int,
+    hSpacing: Dp,
+    vSpacing: Dp,
+    thumbnailPadding: Boolean,
+    favouriteKeys: Set<String>,
+    selectedKeys: Set<String>,
+    onItemClick: (MediaItem) -> Unit,
+    onItemDoubleTap: (MediaItem) -> Unit,
+    onItemLongPress: (MediaItem) -> Unit,
+    onScrolled: (Int, Int, Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val lastIndex = items.lastIndex.coerceAtLeast(0)
+    // Starts where the user left this tab, not at the top.
+    val gridState = rememberLazyGridState(initialFirstVisibleItemIndex = pageStart.coerceIn(0, lastIndex))
+    val latestOnScrolled by rememberUpdatedState(onScrolled)
+
+    // ViewModel → grid: follow cursor moves made elsewhere (e.g. the viewer closing on an item
+    // further down). The first composition already starts at pageStart, so only CHANGES count,
+    // and an item already on screen isn't scrolled to.
+    var appliedStart by remember { mutableIntStateOf(pageStart) }
+    LaunchedEffect(pageStart) {
+        if (pageStart == appliedStart) return@LaunchedEffect
+        appliedStart = pageStart
+        val visible = gridState.layoutInfo.visibleItemsInfo
+        val onScreen = visible.isNotEmpty() && pageStart in visible.first().index..visible.last().index
+        if (!onScreen) gridState.scrollToItem(pageStart.coerceIn(0, lastIndex))
+    }
+
+    // Grid → ViewModel: where the eyes are (the slideshow starts there, and new media never
+    // gets slotted in above it).
+    LaunchedEffect(gridState, cols) {
+        snapshotFlow {
+            val visible = gridState.layoutInfo.visibleItemsInfo
+            val first = visible.firstOrNull()
+            val topLeft = when {
+                first == null -> 0
+                // A top row that is mostly scrolled away isn't the row being looked at.
+                gridState.firstVisibleItemScrollOffset > first.size.height / 2 -> first.index + cols
+                else -> first.index
+            }
+            Triple(
+                topLeft.coerceAtMost(visible.lastOrNull()?.index ?: 0),
+                visible.lastOrNull()?.index ?: 0,
+                !gridState.isScrollInProgress,
+            )
+        }
+            .distinctUntilChanged()
+            .collect { (topLeft, last, settled) -> latestOnScrolled(topLeft, last, settled) }
+    }
+
+    // Look-ahead while idle: two screens below and one above, each thumbnail queued once.
+    LaunchedEffect(gridState, items, thumbPx) {
+        val loader = SingletonImageLoader.get(context)
+        val queued = HashSet<String>()
+        snapshotFlow { gridState.isScrollInProgress }
+            .filter { scrolling -> !scrolling }
+            .collect {
+                val visible = gridState.layoutInfo.visibleItemsInfo
+                if (visible.isEmpty()) return@collect
+                val first = visible.first().index
+                val last = visible.last().index
+                val screen = last - first + 1
+                val from = (first - screen).coerceAtLeast(0)
+                val to = (last + screen * 2).coerceAtMost(items.lastIndex)
+                for (i in from..to) {
+                    if (i in first..last) continue
+                    val item = items[i]
+                    if (item.mediaType == MediaType.AUDIO || !queued.add(item.stableKey)) continue
+                    loader.enqueue(gridThumbRequest(context, item, thumbPx))
                 }
             }
+    }
+
+    LazyVerticalGrid(
+        state = gridState,
+        columns = GridCells.Fixed(cols),
+        modifier = modifier,
+        contentPadding = if (thumbnailPadding) {
+            PaddingValues(horizontal = 6.dp, vertical = 4.dp)
+        } else {
+            PaddingValues(0.dp)
+        },
+        horizontalArrangement = Arrangement.spacedBy(hSpacing),
+        verticalArrangement = Arrangement.spacedBy(vSpacing),
+    ) {
+        items(items, key = { it.stableKey }) { item ->
+            MediaGridCell(
+                item = item,
+                thumbPx = thumbPx,
+                isFavourite = favouriteKeys.contains(item.stableKey),
+                isSelected = selectedKeys.contains(item.stableKey),
+                rounded = thumbnailPadding,
+                onClick = { onItemClick(item) },
+                onDoubleTap = { onItemDoubleTap(item) },
+                onLongPress = { onItemLongPress(item) },
+            )
         }
     }
 }
@@ -328,6 +422,7 @@ private fun SwipePagedGrid(
     modifier: Modifier = Modifier,
 ) {
     val view = LocalView.current
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     var stripBase by remember { mutableIntStateOf(pageStart) }
@@ -351,33 +446,33 @@ private fun SwipePagedGrid(
 
     val capacity = pageCapacity.coerceAtLeast(1)
     val base = stripBase.coerceIn(0, (items.size - 1).coerceAtLeast(0))
-    val hasPrev = base > 0
-    val prevStart = (base - capacity).coerceAtLeast(0)
-    val nextStart = base + capacity
-    val currentItems = remember(items, base, capacity) { windowOf(items, base, capacity) }
-    val nextItems = remember(items, nextStart, capacity) {
-        // Past the end the ViewModel wraps complete lists back to the first window.
-        if (nextStart < items.size) windowOf(items, nextStart, capacity) else windowOf(items, 0, capacity)
-    }
-    // With no previous page, a back swipe wraps to the TAIL window of the list (the
-    // ViewModel commits the same cursor), so that window waits on the back side and the
-    // post-settle handoff renders identical pixels. Lists that fit on one page keep the next
-    // window there (the ViewModel won't move the cursor for those).
-    val backWrapStart = if (items.size > capacity) {
-        (items.size - capacity).coerceAtLeast(0)
-    } else {
-        nextStart
-    }
-    val prevItems = remember(items, prevStart, capacity, hasPrev, backWrapStart, nextItems) {
-        when {
-            hasPrev -> windowOf(items, prevStart, capacity)
-            items.size > capacity -> windowOf(items, backWrapStart, capacity)
-            else -> nextItems
+    // The same rule the ViewModel follows, so each parked window IS the page a swipe lands on.
+    // Both neighbours are always composed (and so already decoded) before the finger moves:
+    // the back-wrap page used to be built only once a backwards drag began, and it visibly
+    // loaded in during the swipe.
+    val prevStart = PageWindow.previous(base, items.size, capacity)
+    val nextStart = PageWindow.next(base, items.size, capacity)
+    val hasPrev by rememberUpdatedState(prevStart != null)
+    val hasNext by rememberUpdatedState(nextStart != null)
+    // On a two-page list both neighbours are the same window, and one subtree can't sit on both
+    // sides; it follows the finger instead (read here, so this recomposes only when it flips).
+    val sharedNeighbour = prevStart != null && prevStart == nextStart
+    val backPulling by remember { derivedStateOf { offsetX > 0.5f || offsetY > 0.5f } }
+
+    // One page further out in each direction: quick repeated swipes land on decoded tiles.
+    LaunchedEffect(base, capacity, items, thumbPx) {
+        val loader = SingletonImageLoader.get(context)
+        val beyond = listOfNotNull(
+            nextStart?.let { PageWindow.next(it, items.size, capacity) },
+            prevStart?.let { PageWindow.previous(it, items.size, capacity) },
+        )
+        for (start in beyond.distinct()) {
+            if (start == base) continue
+            windowOf(items, start, capacity).forEach { item ->
+                if (item.mediaType != MediaType.AUDIO) loader.enqueue(gridThumbRequest(context, item, thumbPx))
+            }
         }
     }
-    // Sign of the drag, recomposed only when it flips: with no previous page the single "next"
-    // window subtree parks on whichever side the finger is pulling from.
-    val backPulling by remember { derivedStateOf { offsetX > 0.5f || offsetY > 0.5f } }
 
     Box(
         modifier = modifier
@@ -423,12 +518,14 @@ private fun SwipePagedGrid(
                                 }
                             }
                             if (dragging) {
-                                // 1:1 with the finger — both directions always have a page
-                                // waiting (backwards deals forward when no history exists).
+                                // 1:1 with the finger towards any side that has a page; a side
+                                // with nothing to show (a single-page list) doesn't move.
+                                val towardsNext = if (hasNext) -1f else 0f
+                                val towardsPrev = if (hasPrev) 1f else 0f
                                 if (dragAxis == 1) {
-                                    offsetX = (offsetX + dx).coerceIn(-width, width)
+                                    offsetX = (offsetX + dx).coerceIn(towardsNext * width, towardsPrev * width)
                                 } else {
-                                    offsetY = (offsetY + dy).coerceIn(-height, height)
+                                    offsetY = (offsetY + dy).coerceIn(towardsNext * height, towardsPrev * height)
                                 }
                                 if (change.positionChanged()) change.consume()
                             }
@@ -442,16 +539,20 @@ private fun SwipePagedGrid(
                     val velocity = tracker.calculateVelocity()
                     val vel = (if (axis == 1) velocity.x else velocity.y)
                         .coerceIn(-MAX_SETTLE_VELOCITY, MAX_SETTLE_VELOCITY)
-                    val dir = when {
+                    val wanted = when {
                         vel < -FLING_COMMIT_VELOCITY -> 1
                         vel > FLING_COMMIT_VELOCITY -> -1
                         off < -extent * COMMIT_FRACTION -> 1
                         off > extent * COMMIT_FRACTION -> -1
                         else -> 0
                     }
-                    val commit = dir != 0
+                    val dir = when {
+                        wanted == 1 && !hasNext -> 0
+                        wanted == -1 && !hasPrev -> 0
+                        else -> wanted
+                    }
                     settleJob = scope.launch {
-                        if (commit) {
+                        if (dir != 0) {
                             commitInFlight = true
                             // Dispatch now so the page after next loads behind the settle.
                             latestShuffle(dir)
@@ -459,9 +560,9 @@ private fun SwipePagedGrid(
                             animate(off, -dir * extent, vel, PageSettleSpec) { value, _ ->
                                 if (axis == 1) offsetX = value else offsetY = value
                             }
-                            // Adopt whatever cursor the ViewModel chose (handles wrap-around
-                            // and end-of-bag reshuffles) and recentre in the same frame —
-                            // atomic, so old offset and new data never draw together.
+                            // Adopt whatever cursor the ViewModel chose (handles wrap-around)
+                            // and recentre in the same frame — atomic, so old offset and new
+                            // data never draw together.
                             stripBase = latestPageStart
                             offsetX = 0f
                             offsetY = 0f
@@ -474,6 +575,8 @@ private fun SwipePagedGrid(
                             offsetX = 0f
                             offsetY = 0f
                             dragAxis = 0
+                            // A cursor move that arrived mid-spring was held back; take it now.
+                            if (stripBase != latestPageStart) stripBase = latestPageStart
                         }
                     }
                 }
@@ -481,28 +584,17 @@ private fun SwipePagedGrid(
     ) {
         // Pages are keyed by WINDOW START, not by role. After a commit the old "next" subtree
         // (same key) is moved into the current slot instead of being rebuilt, so its images
-        // never recompose — this is what removes the one-frame blink on the handoff. With no
-        // previous page there is only ONE next-window subtree; it swaps sides with the pull
-        // direction (same key either way, so it moves rather than reloads).
-        val slots = if (hasPrev) {
-            listOf(
-                Triple(-1, prevStart, prevItems),
-                Triple(0, base, currentItems),
-                Triple(1, nextStart, nextItems),
-            )
-        } else if (backPulling) {
-            listOf(
-                Triple(-1, backWrapStart, prevItems),
-                Triple(0, base, currentItems),
-            )
-        } else {
-            listOf(
-                Triple(0, base, currentItems),
-                Triple(1, nextStart, nextItems),
-            )
+        // never recompose — this is what removes the one-frame blink on the handoff.
+        val slots = buildList {
+            if (prevStart != null && (!sharedNeighbour || backPulling)) add(-1 to prevStart)
+            add(0 to base)
+            if (nextStart != null && (!sharedNeighbour || !backPulling)) add(1 to nextStart)
         }
-        slots.forEach { (role, windowStart, pageItems) ->
+        slots.forEach { (role, windowStart) ->
             key(windowStart) {
+                val pageItems = remember(items, windowStart, capacity) {
+                    windowOf(items, windowStart, capacity)
+                }
                 SwipeGridPage(
                     items = pageItems,
                     cols = cols,
@@ -749,6 +841,10 @@ private fun MediaGridCell(
  * The exact request a grid cell will make. Shared so neighbouring random sets can be warmed
  * with matching cache keys — prefetching under a different key would decode twice and still
  * leave the grid blank on swipe.
+ *
+ * Scale and precision are spelled out even though AsyncImage would fill them in: warm-up
+ * requests don't go through AsyncImage, and with Coil's defaults (FIT, EXACT) they rejected
+ * every thumbnail already in the cache and decoded it again.
  */
 fun gridThumbRequest(
     context: android.content.Context,
@@ -759,6 +855,8 @@ fun gridThumbRequest(
     return ImageRequest.Builder(context)
         .data(item.uri)
         .size(Size(thumbPx, thumbPx))
+        .scale(Scale.FILL)
+        .precision(Precision.INEXACT)
         .memoryCacheKey(cacheKey)
         .diskCacheKey(cacheKey)
         .memoryCachePolicy(CachePolicy.ENABLED)

@@ -17,7 +17,9 @@ import com.mousy.windfall.data.model.GridMode
 import com.mousy.windfall.data.model.MediaItem
 import com.mousy.windfall.data.model.MediaType
 import com.mousy.windfall.data.model.MultiVideoState
+import com.mousy.windfall.data.model.PageWindow
 import com.mousy.windfall.data.model.SamplingDefaults
+import com.mousy.windfall.data.model.ShuffleDeck
 import com.mousy.windfall.data.model.SlideshowSpeeds
 import com.mousy.windfall.data.model.SnackMessage
 import com.mousy.windfall.data.model.ThemeMode
@@ -31,7 +33,10 @@ import com.mousy.windfall.data.media.MediaIndexCache
 import com.mousy.windfall.data.media.warmSystemThumbnail
 import com.mousy.windfall.ui.components.gridThumbRequest
 import com.mousy.windfall.util.AppVisibility
+import com.mousy.windfall.util.LogCapture
+import java.io.File
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -41,12 +46,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Collections
 
 class GalleryViewModel(application: Application) : AndroidViewModel(application) {
@@ -57,8 +64,27 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     private val favExporter = FavouritesExporter(application)
     private val favSync = FavouritesFolderSync(application)
 
+    /**
+     * The one source of truth for settings once they are restored. Changes land here first
+     * (atomically, so the background thumbnail farmer and a tap can't overwrite each other) and
+     * are written to disk behind it by a single writer (see [settingsVersion]).
+     */
     private val _settings = MutableStateFlow(AppSettings())
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
+
+    /** Completes once settings are loaded from disk; nothing may scan or save before that. */
+    private val settingsReady = CompletableDeferred<Unit>()
+
+    /**
+     * Bumped on every settings change. One collector saves whatever [_settings] holds at that
+     * moment: a burst of changes costs one write, and the newest settings are always what ends
+     * up on disk. Handing snapshots to the writer instead could let an older one land last.
+     */
+    private val settingsVersion = MutableStateFlow(0L)
+
+    /** True once the first real screen can be drawn; the splash screen waits for it. */
+    private val _ready = MutableStateFlow(false)
+    val ready: StateFlow<Boolean> = _ready.asStateFlow()
 
     private val _allMedia = MutableStateFlow<List<MediaItem>>(emptyList())
     private val _folderFavourites = MutableStateFlow<List<MediaItem>>(emptyList())
@@ -90,15 +116,28 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     private var nextLaunchSeed = 0L
     private var warmedNextLaunchKey: String? = null
 
-    /** How many items of the library the gallery prepares; grows as the user keeps browsing. */
-    private val _sampleLimit = MutableStateFlow(SamplingDefaults.MIN_SAMPLE)
+    /**
+     * One stable random order per swipe-able list (see [ShuffleDeck]). Only touched from the
+     * library pipeline, which runs one computation at a time.
+     */
+    private val galleryDeck = ShuffleDeck<MediaItem> { it.stableKey }
+    private val favouritesDeck = ShuffleDeck<MediaItem> { it.stableKey }
+    private val recentDeck = ShuffleDeck<MediaItem> { it.stableKey }
+
+    /**
+     * Per list, how many leading items the user may already have seen. New media is only ever
+     * slotted in after this point, so no page that has been on screen changes. Written on the
+     * main thread, read by the library pipeline.
+     */
+    @Volatile private var frontiers: Map<AppTab, Int> = emptyMap()
 
     private val _albumOpen = MutableStateFlow<String?>(null)
+
+    /** Random order for the open album; null shows it newest-first. */
+    private val _albumSeed = MutableStateFlow<Long?>(null)
     private val _viewerUi = MutableStateFlow(ViewerUi())
     private val _shellUi = MutableStateFlow(ShellUi())
     private val _transient = MutableStateFlow(TransientUi())
-
-    private var pendingUndoSettings: AppSettings? = null
 
     private var slideshowJob: Job? = null
     private var snackJob: Job? = null
@@ -109,12 +148,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     private var lastMediaScanKey: String? = null
     private var lastFolderDiscoveryKey: String? = null
-    private var settingsRestored = false
     private var refreshToken = 0
-
-    /** Distinct items opened this app session — feeds the adaptive sample size. */
-    private val sessionViewedKeys = HashSet<String>()
-    private var sessionBaselineAvg = SamplingDefaults.INITIAL_AVG_VIEWED
 
     /**
      * The expensive half of the UI state. Kept apart from viewer/chrome/menu toggles so that
@@ -132,8 +166,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         ) { media, favs, deleted, folders, globalFavs ->
             LibrarySources(media, favs, deleted, folders, globalFavs)
         },
-        combine(_shuffleSeed, _sampleLimit, _albumOpen, _boostFavIds) { seed, limit, album, boost ->
-            SampleInputs(seed, limit, album, boost)
+        combine(_shuffleSeed, _albumOpen, _albumSeed, _boostFavIds) { seed, album, albumSeed, boost ->
+            SampleInputs(seed, album, albumSeed, boost)
         },
     ) { inputs, sources, sample ->
         buildLibraryState(inputs, sources, sample)
@@ -153,20 +187,39 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     init {
         viewModelScope.launch {
-            settingsRepo.settingsFlow.collect { raw ->
-                val s = raw.sanitized()
-                _settings.value = s
-                if (!settingsRestored) {
-                    settingsRestored = true
-                    sessionBaselineAvg = s.avgViewedPerSession
-                    initShuffleSeed(s)
+            // Read once. From here on the in-memory copy leads and disk follows. The old code
+            // re-applied every DataStore emission, which could put an older snapshot back on
+            // screen in the middle of a burst of changes and then save over the newer one.
+            val restored = settingsRepo.settingsFlow.first().sanitized()
+            _settings.value = restored
+            settingsReady.complete(Unit)
+            initShuffleSeed(restored)
+            launch {
+                settingsVersion.collect {
+                    // A failed write (disk full, say) must not kill the writer: the next change
+                    // retries with the newest settings.
+                    try {
+                        settingsRepo.save(_settings.value)
+                    } catch (ce: CancellationException) {
+                        throw ce
+                    } catch (t: Throwable) {
+                        android.util.Log.e("GalleryVM", "Saving settings failed", t)
+                    }
                 }
+            }
+            // Rescan whenever a change affects which files are in the library.
+            _settings.collect { s ->
                 val key = mediaScanKey(s)
                 if (key != lastMediaScanKey) {
                     lastMediaScanKey = key
                     refreshMedia()
                 }
             }
+        }
+        // Never hold the splash screen for long, whatever the library is doing.
+        viewModelScope.launch {
+            delay(READY_TIMEOUT_MS)
+            _ready.value = true
         }
     }
 
@@ -177,7 +230,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         // A cancelled scan must not clear the spinner belonging to the scan that replaced it.
         val token = ++refreshToken
         refreshJob = viewModelScope.launch {
-            delay(180)
+            // Scanning before settings load would scan (and cache) an empty default library.
+            settingsReady.await()
+            // Debounce bursts such as ticking several folders, but never delay the first load.
+            if (_allMedia.value.isNotEmpty()) delay(180)
             _transient.update { it.copy(loading = true) }
             try {
                 val s = _settings.value
@@ -189,9 +245,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     val cached = indexCache.load(scanKey)
                     if (cached.isNotEmpty() && token == refreshToken && _allMedia.value.isEmpty()) {
                         _allMedia.value = cached
-                        _sampleLimit.value =
-                            SamplingDefaults.sampleSizeFor(s.avgViewedPerSession, cached.size)
                         _transient.update { it.copy(loading = false) }
+                        _ready.value = true
                     }
                 }
                 val media = mediaRepo.scanMedia(
@@ -200,8 +255,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     hiddenFolders = s.hiddenFolders,
                     fileTypeFilters = effectiveFileTypes(s.fileTypes),
                 )
+                // Files in added (SAF) folders come back with stable keys now; carry favourites
+                // saved under the old unstable keys across before the hearts are drawn.
+                migrateSafFavouriteKeys(media)
                 _allMedia.value = media
-                _sampleLimit.value = SamplingDefaults.sampleSizeFor(s.avgViewedPerSession, media.size)
+                _ready.value = true
                 indexCache.save(scanKey, media)
                 // Which folders exist on the device doesn't change when you tick one of them,
                 // so this device-wide walk only reruns when the hidden-folder rules change.
@@ -421,6 +479,22 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    /**
+     * Files in added (SAF) folders used to take their id from a counter in walk order, so after
+     * any change to such a folder the same file could come back under a different key and its
+     * favourite was silently lost. Keys are stable now; this moves favourites saved under an
+     * old key onto the file's current key, matched by the file's document address.
+     */
+    private fun migrateSafFavouriteKeys(media: List<MediaItem>) {
+        if (_settings.value.favIds.isEmpty()) return
+        val safByUri = media.filter { it.id < 0 }.associateBy { it.uri.toString() }
+        if (safByUri.isEmpty()) return
+        fun currentKey(key: String): String =
+            MediaItem.uriOfSafKey(key)?.let { safByUri[it]?.stableKey } ?: key
+        if (_settings.value.favIds.none { currentKey(it) != it }) return
+        persistSettings { s -> s.copy(favIds = s.favIds.mapTo(HashSet()) { currentKey(it) }) }
+    }
+
     private suspend fun autoConfigureFileTypes(media: List<MediaItem>, s: AppSettings) {
         if (media.isEmpty()) return
         val known = s.fileTypes
@@ -441,24 +515,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun selectTab(tab: AppTab) {
+        if (tab == AppTab.SLIDESHOW) {
+            startSlideshow()
+            return
+        }
         slideshowJob?.cancel()
         when (tab) {
-            AppTab.SLIDESHOW -> {
-                val source = _shellUi.value.tab
-                val list = tabSourceList(source, _albumOpen.value)
-                if (list.isNotEmpty()) {
-                    // Slideshow ALWAYS starts at the very first media of the order, so land the
-                    // source grid on page 1 too — index 0 below is page 1, media 1.
-                    setCursor(source, 0)
-                    openViewer(
-                        keys = list,
-                        index = 0,
-                        autoPlay = true,
-                        slideshowMode = true,
-                        fromGallery = source != AppTab.FAV && source != AppTab.RECENT && source != AppTab.ALBUM,
-                    )
-                }
-            }
             AppTab.GALLERY -> {
                 // Re-tapping Gallery while already on it re-deals; arriving from another tab
                 // (or closing the viewer) keeps your place — continuity over surprise.
@@ -479,14 +541,57 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    /**
+     * The Slideshow tab starts where the eyes are, never back at page 1:
+     *  - from a grid, at the top-left item of the page (swipe) or top row (scroll) on screen;
+     *  - from the fullscreen viewer, at the item being viewed.
+     * It then carries on through everything after that point.
+     */
+    private fun startSlideshow() {
+        val viewer = _viewerUi.value
+        when {
+            viewer.open && viewer.slideshowMode -> Unit // already running; leave it be
+            viewer.open -> openViewer(
+                keys = viewer.keys,
+                index = viewer.index,
+                autoPlay = true,
+                slideshowMode = true,
+                sourceTab = viewer.sourceTab,
+            )
+            else -> {
+                val listTab = listTabFor(_shellUi.value.tab)
+                val list = tabSourceList(listTab)
+                if (list.isEmpty()) return
+                openViewer(
+                    keys = list,
+                    index = cursorFor(listTab).coerceIn(0, list.lastIndex),
+                    autoPlay = true,
+                    slideshowMode = true,
+                    sourceTab = listTab,
+                )
+            }
+        }
+    }
+
     private fun closeViewerState() {
         _viewerUi.update {
             it.copy(open = false, playing = false, menuOpen = false, speedMenuOpen = false, detailsOpen = false)
         }
     }
 
-    fun toggleGridMode() = persistSettings {
-        it.copy(gridMode = if (it.gridMode == GridMode.SWIPE) GridMode.SCROLL else GridMode.SWIPE)
+    /** Switching modes keeps your place: the top-left item stays in view. */
+    fun toggleGridMode() {
+        val toSwipe = _settings.value.gridMode == GridMode.SCROLL
+        if (toSwipe) {
+            // Scroll mode's top row can sit anywhere; snap to the page that contains it.
+            val capacity = pageCapacity.coerceAtLeast(1)
+            setCursor(AppTab.GALLERY, (cursorFor(AppTab.GALLERY) / capacity) * capacity)
+            setCursor(AppTab.FAV, (cursorFor(AppTab.FAV) / capacity) * capacity)
+        }
+        // Recent changes ORDER between modes (shuffled vs newest-first), so its old position
+        // points at unrelated items; start it over.
+        setCursor(AppTab.RECENT, 0)
+        persistSettings { it.copy(gridMode = if (toSwipe) GridMode.SWIPE else GridMode.SCROLL) }
     }
 
     fun cycleColumns() = persistSettings {
@@ -500,10 +605,15 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         persistSettings { it.copy(columns = clamped) }
     }
 
-    /** Shuffle button (or bag exhausted): deal a brand-new random order from page one. */
+    /**
+     * Shuffle button (or re-tapping Gallery): deal a brand-new random order from page one. The
+     * only way, besides a fresh app launch, that the gallery's order changes.
+     */
     fun shuffleGrid() {
         _boostFavIds.value = _settings.value.favIds
         _shuffleSeed.value = newShuffleSeed()
+        // Every deck re-deals on the new seed, so nothing of the new orders has been seen yet.
+        frontiers = emptyMap()
         setCursor(AppTab.GALLERY, 0)
     }
 
@@ -512,132 +622,132 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /**
-     * CONTINUITY CORE. One seeded shuffle per session = one fixed random ordering; a page
-     * swipe just slides a cursor window through it. Back re-shows exactly what you saw (still
-     * cached, so it's instant); forward reveals the next unseen slice and keeps the sample a
-     * page ahead. Only when every playable item has been dealt does a fresh shuffle start —
-     * the classic shuffle-bag: full randomness, zero repeats within a cycle.
+     * CONTINUITY CORE. One deal per shuffle = one fixed random order (held still by
+     * [ShuffleDeck]); a page swipe just slides a cursor window through it. Back re-shows
+     * exactly what you saw (still cached, so it's instant); forward reveals the next page.
+     * Back from page 1 wraps to the unseen tail and forward from the last page wraps to page
+     * 1, so both directions are endless. [PageWindow] holds the rule, shared with the grid.
      */
     private fun swipePage(direction: Int) {
         val tab = _shellUi.value.tab
-        val library = libraryState.value
-        val listSize = when (tab) {
-            AppTab.FAV -> library.favourites.size
-            AppTab.RECENT -> library.recent.size
-            else -> library.gallery.size
-        }
-        if (listSize == 0) return
+        val size = listFor(tab).size
+        if (size == 0) return
         val capacity = pageCapacity.coerceAtLeast(1)
         val cursor = cursorFor(tab)
-        if (direction < 0 && cursor > 0) {
-            setCursor(tab, (cursor - capacity).coerceAtLeast(0))
-            return
-        }
-        if (direction < 0) {
-            // Back swipe on the FIRST page: wrap to the tail window of the list as it stands,
-            // so backwards is as continuous (and as random) as forwards — the tail of the
-            // seeded sample is unseen content. The grid parks this same window on the back
-            // side (see SwipePagedGrid), so the settle handoff stays invisible. Dealing
-            // forward here (the old behaviour) made the next forward swipe look like it
-            // skipped up to two pages. Swiping forward from the tail keeps extending the
-            // sample as usual, so travel stays continuous in both directions.
-            val size = if (tab == AppTab.GALLERY) library.gallery.size else listSize
-            // NO sample extension here: the list must stay untouched through the settle
-            // animation, or the parked window changes content mid-flight (the "double
-            // refresh"). The grid parks this same window (backWrapStart) on the back side.
-            if (size > capacity) setCursor(tab, (size - capacity).coerceAtLeast(0))
-            return
-        }
-        val next = cursor + capacity
-        if (tab == AppTab.GALLERY) {
-            if (next >= library.gallery.size) {
-                // Off the end of the materialised list: wrap to page 1 (the grid already
-                // parks the first window there). A surprise reshuffle here redealt EVERYTHING
-                // including page 1; fresh orders still come from each app launch and from
-                // re-tapping the Gallery tab.
-                setCursor(tab, 0)
-                return
-            }
-            // Keep the page after next prepared; the window clamps while the sample grows.
-            extendSampleIfNeeded(next + capacity * 2)
-            setCursor(tab, next)
+        val target = if (direction < 0) {
+            PageWindow.previous(cursor, size, capacity)
         } else {
-            // Favourites / Recents are complete lists — wrap around at the end.
-            setCursor(tab, if (next >= listSize) 0 else next)
+            PageWindow.next(cursor, size, capacity)
         }
+        if (target != null) setCursor(tab, target)
     }
 
     private fun cursorFor(tab: AppTab): Int = _shellUi.value.pageCursors[tab] ?: 0
 
     private fun setCursor(tab: AppTab, value: Int) {
-        _shellUi.update { it.copy(pageCursors = it.pageCursors + (tab to value.coerceAtLeast(0))) }
+        val cursor = value.coerceAtLeast(0)
+        _shellUi.update { it.copy(pageCursors = it.pageCursors + (tab to cursor)) }
+        // The page at the cursor is on screen and the one after it is parked, decoded.
+        noteSeen(tab, cursor + 2 * pageCapacity.coerceAtLeast(1))
+    }
+
+    /** Raises [tab]'s frontier: everything before [index] may have been seen. */
+    private fun noteSeen(tab: AppTab, index: Int) {
+        val current = frontiers[tab] ?: 0
+        if (index > current) frontiers = frontiers + (tab to index)
     }
 
     /**
-     * Widens the prepared slice once the user approaches the end of it. Draws from the same
-     * seeded order, so the extra items are new — never repeats of what's already shown.
+     * Scroll-mode position. Every row that passes moves the frontier (a plain field, no UI
+     * update); only a settled position is stored as the tab's cursor, which the slideshow
+     * starts from and a recreated grid scrolls back to.
      */
-    fun extendSampleIfNeeded(reachedIndex: Int) {
-        val total = libraryState.value.playableCount
-        val limit = _sampleLimit.value
-        if (limit >= total) return
-        if (reachedIndex < (limit * SamplingDefaults.EXTEND_AT_FRACTION).toInt()) return
-        val batch = SamplingDefaults.sampleSizeFor(_settings.value.avgViewedPerSession, total)
-        _sampleLimit.value = (limit + batch).coerceAtMost(total)
+    fun onGridScrolled(tab: AppTab, topLeft: Int, lastVisible: Int, settled: Boolean) {
+        // A screen's worth below the fold is composed and decoding already.
+        noteSeen(tab, lastVisible + 1 + pageCapacity.coerceAtLeast(1))
+        if (settled && topLeft != cursorFor(tab)) {
+            _shellUi.update { it.copy(pageCursors = it.pageCursors + (tab to topLeft.coerceAtLeast(0))) }
+        }
     }
 
     fun toggleFavourite(key: String) {
         viewModelScope.launch {
             val s = _settings.value
-            val folderItem = _folderFavourites.value.find { it.stableKey == key }
             val libraryItem = _allMedia.value.find { it.stableKey == key }
+            val folderItem = _folderFavourites.value.find { it.stableKey == key }
 
-            // Unfavourite a Favourites-folder copy: remove file + matching library favIds.
+            // Un-heart a file shown from the Favourites folder (Favourites tab, folder mode).
             if (folderItem != null && usesFavouritesFolder(s) && libraryItem == null) {
-                favSync.syncFavouriteRemoved(s.copyFavTreeUri, folderItem.displayName)
                 val name = folderItem.displayName
+                val library = libraryState.value.lookup
+                // Its original, if one is favourited, stops being a favourite too.
                 persistSettings { cur ->
-                    cur.copy(
-                        favIds = cur.favIds.filter { id ->
-                            _allMedia.value.find { it.stableKey == id }?.displayName != name
-                        }.toSet(),
-                    )
+                    cur.copy(favIds = cur.favIds.filterTo(HashSet()) { library[it]?.displayName != name })
                 }
-                refreshFolderFavourites()
+                removeFolderCopy(folderItem, explainIfNotOurs = true)
                 return@launch
             }
 
             val item = libraryItem ?: folderItem ?: return@launch
-            val newFavs = s.favIds.toMutableSet()
-            // Library items: toggle favIds; folder-mode hearts on gallery still use favIds.
-            val isFav = isFavouriteItem(item)
-            if (isFav) {
-                newFavs.remove(key)
-                _allMedia.value.filter { it.displayName == item.displayName }
-                    .forEach { newFavs.remove(it.stableKey) }
-                persistSettings { it.copy(favIds = newFavs) }
-                if (usesFavouritesFolder(s)) {
-                    favSync.syncFavouriteRemoved(s.copyFavTreeUri, item.displayName)
-                    refreshFolderFavourites()
+            if (isFavouriteItem(item)) {
+                persistSettings { it.copy(favIds = it.favIds - key) }
+                // Copies are named after their original, so two favourites with the same file
+                // name share one copy; it goes only when neither is a favourite any more.
+                val library = libraryState.value.lookup
+                val nameStillFavourite = _settings.value.favIds.any {
+                    library[it]?.displayName == item.displayName
+                }
+                if (usesFavouritesFolder(s) && !nameStillFavourite) {
+                    _folderFavourites.value
+                        .firstOrNull { it.displayName == item.displayName }
+                        ?.let { removeFolderCopy(it, explainIfNotOurs = false) }
                 }
             } else {
-                newFavs.add(key)
-                persistSettings { it.copy(favIds = newFavs) }
+                persistSettings { it.copy(favIds = it.favIds + key) }
                 if (usesFavouritesFolder(s)) {
-                    favSync.syncFavouriteAdded(s.copyFavTreeUri, item)
-                    refreshFolderFavourites()
+                    copyIntoFavouritesFolder(s.copyFavTreeUri, listOf(item))
                 }
             }
         }
     }
 
+    /**
+     * A heart means "this key is a favourite", or, in Favourites-folder mode, "this is one of
+     * the files in that folder". A library photo is NOT a favourite just because the folder
+     * holds a file with the same name: that name match is what turned hearting an original
+     * into deleting it.
+     */
     fun isFavouriteItem(item: MediaItem): Boolean {
         val s = _settings.value
         if (item.stableKey in s.favIds) return true
         if (!usesFavouritesFolder(s)) return false
-        return _folderFavourites.value.any {
-            it.stableKey == item.stableKey || it.displayName == item.displayName
+        return _folderFavourites.value.any { it.stableKey == item.stableKey }
+    }
+
+    /** Copies [items] into the Favourites folder and remembers which copies are ours. */
+    private suspend fun copyIntoFavouritesFolder(treeUri: String, items: List<MediaItem>) {
+        val made = favSync.copyAll(treeUri, items).map { it.toString() }
+        if (made.isNotEmpty()) persistSettings { it.copy(favCopyUris = it.favCopyUris + made) }
+        refreshFolderFavourites()
+    }
+
+    /**
+     * Removes a file from the Favourites folder, but only a copy Windfall made itself, and never
+     * while "Disable all delete options" is on. A file the user put there stays.
+     */
+    private suspend fun removeFolderCopy(file: MediaItem, explainIfNotOurs: Boolean) {
+        val s = _settings.value
+        val address = file.uri.toString()
+        when {
+            address !in s.favCopyUris -> if (explainIfNotOurs) {
+                showSnack("Kept \"${file.displayName}\": Windfall only removes copies it made.")
+            }
+            s.deletesDisabled -> Unit // the copy stays; it's still ours to remove later
+            else -> favSync.removeCopy(file.uri)
+                .onSuccess { persistSettings { it.copy(favCopyUris = it.favCopyUris - address) } }
+                .onFailure { android.util.Log.w("GalleryVM", "Could not remove favourite copy", it) }
         }
+        refreshFolderFavourites()
     }
 
     fun toggleSelect(key: String) {
@@ -657,17 +767,15 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun favouriteSelected() {
-        viewModelScope.launch {
-            val keys = _shellUi.value.selectedKeys
-            persistSettings { it.copy(favIds = it.favIds + keys) }
-            val s = _settings.value
-            if (usesFavouritesFolder(s)) {
-                keys.forEach { key ->
-                    mediaByKey(key)?.let { favSync.syncFavouriteAdded(s.copyFavTreeUri, it) }
-                }
-                refreshFolderFavourites()
+        val keys = _shellUi.value.selectedKeys
+        persistSettings { it.copy(favIds = it.favIds + keys) }
+        // Leave select mode now; copying many files into the Favourites folder can take a while.
+        exitSelectMode()
+        val s = _settings.value
+        if (usesFavouritesFolder(s)) {
+            viewModelScope.launch {
+                copyIntoFavouritesFolder(s.copyFavTreeUri, keys.mapNotNull(::mediaByKey))
             }
-            exitSelectMode()
         }
     }
 
@@ -684,7 +792,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         index: Int,
         autoPlay: Boolean = false,
         slideshowMode: Boolean = autoPlay,
-        fromGallery: Boolean = false,
+        /** The tab whose list [keys] is; its grid follows the viewer when it closes. */
+        sourceTab: AppTab? = null,
     ) {
         val deleted = _deletedKeys.value
         val live = if (deleted.isEmpty()) keys else keys.filter { it !in deleted }
@@ -705,12 +814,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 slideshowMode = slideshowMode,
                 playing = slideshowMode && autoPlay,
                 returnTab = ret,
-                fromGallery = fromGallery,
+                sourceTab = sourceTab,
             )
         }
         // View mode keeps the source tab selected; slideshow mode selects Slideshow.
         if (slideshowMode) _shellUi.update { it.copy(tab = AppTab.SLIDESHOW) }
-        noteViewed(_viewerUi.value.currentKey())
+        noteViewerPosition()
         if (_viewerUi.value.playing) scheduleSlideshow() else slideshowJob?.cancel()
     }
 
@@ -718,18 +827,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         slideshowJob?.cancel()
         val v = _viewerUi.value
         val returnTab = v.returnTab
-        // Land the grid on the page containing what was just on screen — viewer and grid walk
-        // the SAME list, so closing continues exactly where the eyes were. Only move when the
-        // item actually LEFT the visible page: pageCapacity can differ while the viewer is open
-        // (the hidden tab bar makes the grid taller), so unconditionally re-deriving the cursor
-        // from it shifted the window by a few rows on a plain open→close.
-        if (v.open && v.fromGallery && _settings.value.gridMode == GridMode.SWIPE) {
-            val capacity = pageCapacity.coerceAtLeast(1)
-            val cursor = cursorFor(AppTab.GALLERY)
-            if (v.index < cursor || v.index >= cursor + capacity) {
-                setCursor(AppTab.GALLERY, (v.index / capacity) * capacity)
-            }
-        }
+        if (v.open) landGridOnViewerItem(v)
         _viewerUi.update {
             it.copy(
                 open = false,
@@ -741,7 +839,40 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             )
         }
         _shellUi.update { it.copy(tab = returnTab) }
-        persistViewingHabit()
+    }
+
+    /**
+     * Closing the viewer continues exactly where the eyes were: the source grid shows the item
+     * that was last on screen. Found by key rather than by index, because the grid's list can
+     * have gained new media while the viewer was open.
+     */
+    private fun landGridOnViewerItem(v: ViewerUi) {
+        val tab = v.sourceTab ?: return
+        val key = v.currentKey() ?: return
+        val position = listFor(tab).indexOfFirst { it.stableKey == key }
+        if (position < 0) return
+        if (_settings.value.gridMode == GridMode.SWIPE && tab != AppTab.ALBUM) {
+            // Only move when the item actually LEFT the visible page: pageCapacity can differ
+            // while the viewer is open (the hidden tab bar makes the grid taller), so always
+            // re-deriving the cursor from it shifted the window by a few rows on a plain
+            // open→close.
+            val capacity = pageCapacity.coerceAtLeast(1)
+            val cursor = cursorFor(tab)
+            if (position < cursor || position >= cursor + capacity) {
+                setCursor(tab, (position / capacity) * capacity)
+            }
+        } else {
+            // Scroll grids scroll to it only if it isn't on screen already.
+            setCursor(tab, position)
+        }
+    }
+
+    /** What the viewer shows counts as seen in its source list. */
+    private fun noteViewerPosition() {
+        val v = _viewerUi.value
+        val tab = v.sourceTab ?: return
+        // A few items ahead are prefetched in the viewer, so they count as seen as well.
+        noteSeen(tab, v.index + VIEWER_LOOKAHEAD)
     }
 
     /** System back / predictive back — returns true if the event was consumed. */
@@ -806,32 +937,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun afterViewerIndexChange() {
-        noteViewed(_viewerUi.value.currentKey())
-        if (_viewerUi.value.fromGallery) {
-            extendSampleIfNeeded(_viewerUi.value.index)
-            adoptExtendedGallery()
-        }
+        noteViewerPosition()
         // Keep chrome vanished if it was vanished — do not force-show on advance.
         if (_viewerUi.value.playing) scheduleSlideshow()
-    }
-
-    /**
-     * Picks up items added by [extendSampleIfNeeded] while the viewer is open. The seeded draw
-     * only ever appends, so the viewer's existing keys and index stay valid.
-     */
-    private fun adoptExtendedGallery() {
-        val v = _viewerUi.value
-        if (!v.open || !v.fromGallery) return
-        val gallery = libraryState.value.gallery
-        if (gallery.size <= v.keys.size) return
-        val deleted = _deletedKeys.value
-        val extra = gallery.asSequence()
-            .drop(v.keys.size)
-            .map { it.stableKey }
-            .filter { it !in deleted }
-            .toList()
-        if (extra.isEmpty()) return
-        _viewerUi.update { it.copy(keys = it.keys + extra) }
     }
 
     /** Called when a video finishes in the viewer (loop disabled). */
@@ -861,7 +969,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             next = 0
         }
         _viewerUi.update { it.copy(index = next) }
-        noteViewed(_viewerUi.value.currentKey())
+        noteViewerPosition()
         if (_viewerUi.value.playing) scheduleSlideshow()
     }
 
@@ -968,32 +1076,16 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     fun requestResetSettings() = _shellUi.update { it.copy(confirmResetSettings = true) }
     fun cancelResetSettings() = _shellUi.update { it.copy(confirmResetSettings = false) }
 
+    /** Back to defaults, keeping favourites (and the record of which folder copies are ours). */
     fun confirmResetSettings() {
         _shellUi.update { it.copy(confirmResetSettings = false) }
-        viewModelScope.launch {
-            val previous = _settings.value
-            pendingUndoSettings = previous
-            val defaults = settingsRepo.resetToDefaults(keepFavourites = true)
-            _settings.value = defaults
-            showSnack("Settings reset", "Undo") {
-                pendingUndoSettings?.let { snap ->
-                    viewModelScope.launch {
-                        settingsRepo.update { snap }
-                        _settings.value = snap
-                        pendingUndoSettings = null
-                        refreshMedia()
-                    }
-                }
-            }
-            refreshMedia()
+        val previous = _settings.value
+        persistSettings {
+            AppSettings.defaults().copy(favIds = it.favIds, favCopyUris = it.favCopyUris)
         }
+        // A rescan follows by itself: the folder selection changed.
+        showSnack("Settings reset", "Undo") { persistSettings { previous } }
     }
-
-    fun cycleRecentWindow() {
-        setRecentWindow(FavWindow.cycle(_settings.value.recentWindow))
-    }
-
-    fun cycleFavWindow() = setFavWindow(FavWindow.cycle(_settings.value.favWindow))
 
     /** Favourites date window (independent of Recents). */
     fun setFavWindow(window: FavWindow) = persistSettings { s ->
@@ -1008,9 +1100,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             recentWindowDays = canonical.asRecentDays() ?: 365,
         )
     }
-
-    /** @deprecated shared setter — prefer [setFavWindow] / [setRecentWindow]. */
-    fun setListWindow(window: FavWindow) = setFavWindow(window)
 
     fun toggleFavType(key: String) {
         persistSettings { s -> s.copy(favTypes = toggleTypeFilter(s.favTypes, key)) }
@@ -1084,25 +1173,23 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     fun toggleCopyFavs() {
         persistSettings { it.copy(copyFavs = !it.copyFavs) }
-        viewModelScope.launch {
-            val s = _settings.value
-            if (usesFavouritesFolder(s)) {
-                val fromIds = _allMedia.value.filter { it.stableKey in s.favIds }
-                favSync.syncAll(s.copyFavTreeUri, fromIds, previousNames = emptySet())
-            }
-            refreshFolderFavourites()
-        }
+        syncFavouritesFolder()
     }
 
     fun setCopyFavFolder(uri: String, path: String) {
         persistSettings { it.copy(copyFavTreeUri = uri, copyFavPath = path) }
+        syncFavouritesFolder()
+    }
+
+    /** Brings the Favourites folder up to date with the current favourites (copy-in only). */
+    private fun syncFavouritesFolder() {
         viewModelScope.launch {
-            val s = _settings.value.copy(copyFavTreeUri = uri, copyFavPath = path)
-            if (s.copyFavs) {
-                val fromIds = _allMedia.value.filter { it.stableKey in s.favIds }
-                favSync.syncAll(uri, fromIds, previousNames = emptySet())
+            val s = _settings.value
+            if (usesFavouritesFolder(s)) {
+                copyIntoFavouritesFolder(s.copyFavTreeUri, _allMedia.value.filter { it.stableKey in s.favIds })
+            } else {
+                refreshFolderFavourites()
             }
-            refreshFolderFavourites(s.copy(copyFavs = _settings.value.copyFavs))
         }
     }
 
@@ -1149,94 +1236,107 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 AppTab.ALBUM -> s.tabFeatures.copy(album = enabling)
                 else -> s.tabFeatures
             }
-            if (!enabling && _shellUi.value.tab == tab) {
-                _shellUi.update { it.copy(tab = AppTab.GALLERY) }
-            }
             s.copy(tabHidden = hidden, tabOrder = order, tabFeatures = features)
+        }
+        // Outside the update block: that block may run more than once under contention.
+        if (tab in _settings.value.tabHidden && _shellUi.value.tab == tab) {
+            _shellUi.update { it.copy(tab = AppTab.GALLERY) }
         }
     }
 
-    fun toggleMultiVideoFeature() = toggleTabVisibility(AppTab.MULTIVIDEO)
-
-    fun toggleAlbumFeature() = toggleTabVisibility(AppTab.ALBUM)
-
     fun openAlbum(path: String) {
+        _albumSeed.value = null // each album opens newest-first
         _albumOpen.value = path
+        setCursor(AppTab.ALBUM, 0)
         _shellUi.update { it.copy(tab = AppTab.ALBUM) }
     }
 
     fun closeAlbum() { _albumOpen.value = null }
 
-    fun exportSettings(onResult: (String) -> Unit) {
-        viewModelScope.launch {
-            val json = settingsRepo.exportJson(_settings.value)
-            // The UI hands this to a save-as picker and snacks once it's actually written.
-            onResult(json)
-        }
+    /**
+     * The Shuffle button inside an album. It used to call the GALLERY shuffle, which re-dealt
+     * the main gallery (and sent it back to page 1) while the album itself stayed in date order.
+     */
+    fun shuffleAlbum() {
+        _albumSeed.value = newShuffleSeed()
+        setCursor(AppTab.ALBUM, 0)
     }
 
-    fun importSettings(json: String) {
-        viewModelScope.launch {
-            settingsRepo.importJson(json)
-            showSnack("Settings imported")
-            refreshMedia()
-        }
+    fun exportSettings(onResult: (String) -> Unit) {
+        // The UI hands this to a save-as picker and snacks once it's actually written.
+        onResult(settingsRepo.exportJson(_settings.value))
     }
 
     /** DEVICE-ONLY: Import settings JSON and/or a favourites zip from the document picker. */
     fun importSettingsOrFavourites(uri: Uri) {
         viewModelScope.launch {
             val resolver = getApplication<Application>().contentResolver
-            val name = runCatching {
-                resolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
-                    ?.use { c ->
-                        if (c.moveToFirst()) c.getString(0) else null
-                    }
-            }.getOrNull().orEmpty()
-            val mime = resolver.getType(uri).orEmpty()
+            val name = withContext(Dispatchers.IO) {
+                runCatching {
+                    resolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
+                        ?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+                }.getOrNull().orEmpty()
+            }
+            val mime = runCatching { resolver.getType(uri) }.getOrNull().orEmpty()
             val isZip = mime.contains("zip", ignoreCase = true) ||
                 name.endsWith(".zip", ignoreCase = true)
-
-            if (isZip) {
-                val s = _settings.value
-                favExporter.importFavouritesZip(
-                    zipUri = uri,
-                    favTreeUri = s.copyFavTreeUri.takeIf { s.copyFavs && it.isNotBlank() },
-                ).onSuccess { result ->
-                    result.settingsJson?.let { settingsRepo.importJson(it) }
-                    if (result.displayNames.isNotEmpty()) {
-                        val wanted = result.displayNames.toSet()
-                        val matched = _allMedia.value
-                            .filter { it.displayName in wanted }
-                            .map { it.stableKey }
-                            .toSet()
-                        if (matched.isNotEmpty()) {
-                            persistSettings { it.copy(favIds = it.favIds + matched) }
-                        }
-                    }
-                    refreshMedia()
-                    val parts = buildList {
-                        if (result.mediaCount > 0) add("${result.mediaCount} media")
-                        if (result.settingsJson != null) add("settings")
-                    }
-                    showSnack(
-                        if (parts.isEmpty()) "Nothing to import"
-                        else "Imported ${parts.joinToString(" + ")}",
-                    )
-                }.onFailure {
-                    showSnack(it.message ?: "Import failed")
-                }
-            } else {
-                val json = resolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
-                if (json.isNullOrBlank()) {
-                    showSnack("Unable to read file")
-                    return@launch
-                }
-                settingsRepo.importJson(json)
-                showSnack("Settings imported")
-                refreshMedia()
-            }
+            if (isZip) importFavouritesZip(uri) else importSettingsFile(uri)
         }
+    }
+
+    private suspend fun importSettingsFile(uri: Uri) {
+        val resolver = getApplication<Application>().contentResolver
+        val json = withContext(Dispatchers.IO) {
+            runCatching {
+                resolver.openInputStream(uri)?.use { it.readTextCapped(MAX_SETTINGS_FILE_BYTES) }
+            }.getOrNull()
+        }
+        val previous = _settings.value
+        when {
+            json.isNullOrBlank() -> showSnack("Unable to read that file")
+            !applyImportedSettings(json) -> showSnack("That isn't a Windfall settings file")
+            else -> showSnack("Settings imported", "Undo") { persistSettings { previous } }
+        }
+    }
+
+    private suspend fun importFavouritesZip(uri: Uri) {
+        val s = _settings.value
+        favExporter.importFavouritesZip(
+            zipUri = uri,
+            favTreeUri = s.copyFavTreeUri.takeIf { usesFavouritesFolder(s) },
+        ).onSuccess { result ->
+            val settingsApplied = result.settingsJson?.let(::applyImportedSettings) == true
+            val wanted = result.displayNames.toSet()
+            val matched = _allMedia.value.filter { it.displayName in wanted }.map { it.stableKey }
+            if (matched.isNotEmpty()) persistSettings { it.copy(favIds = it.favIds + matched) }
+            if (result.filesCopied > 0) refreshFolderFavourites()
+            val parts = buildList {
+                if (matched.isNotEmpty()) add("${matched.size} favourites")
+                if (result.filesCopied > 0) add("${result.filesCopied} files")
+                if (settingsApplied) add("settings")
+            }
+            showSnack(
+                when {
+                    parts.isNotEmpty() -> "Imported ${parts.joinToString(" + ")}"
+                    result.displayNames.isNotEmpty() && !usesFavouritesFolder(s) ->
+                        "No matching photos. Turn on a Favourites folder to restore the files."
+                    else -> "Nothing to import"
+                },
+            )
+        }.onFailure {
+            showSnack(it.message ?: "Import failed")
+        }
+    }
+
+    /**
+     * Merges an exported settings file onto the CURRENT settings: only what the file mentions
+     * changes. The old import rebuilt settings from the file alone, which reset folders, file
+     * types, hidden folders and tabs to defaults. Returns false if [json] isn't a settings file.
+     */
+    private fun applyImportedSettings(json: String): Boolean {
+        if (settingsRepo.mergeImport(_settings.value, json) == null) return false
+        persistSettings { current -> settingsRepo.mergeImport(current, json) ?: current }
+        return true
     }
 
     /** DEVICE-ONLY: Zip only the currently selected items (from select mode). */
@@ -1463,38 +1563,29 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 next = 0
             }
             _viewerUi.update { it.copy(index = next) }
-            noteViewed(_viewerUi.value.currentKey())
-            if (_viewerUi.value.fromGallery) {
-                extendSampleIfNeeded(next)
-                adoptExtendedGallery()
-            }
+            noteViewerPosition()
             scheduleSlideshow()
         }
     }
 
-    private fun persistSettings(block: (AppSettings) -> AppSettings) {
-        val updated = block(_settings.value.sanitized()).sanitized()
-        _settings.value = updated
-        viewModelScope.launch {
-            settingsRepo.update { updated }
-        }
-    }
-
-    private fun noteViewed(key: String?) {
-        if (key != null) sessionViewedKeys.add(key)
-    }
-
     /**
-     * Folds this session's viewing count into the stored moving average. Always measured
-     * against the average captured at launch, so calling it repeatedly during one session
-     * converges instead of drifting.
+     * The only way settings change. Safe from any thread: the update is atomic (the thumbnail
+     * farmer checkpoints from a background thread, and a plain read-then-write here could drop a
+     * favourite tapped at the same moment), and saving is left to the single writer. [block]
+     * must not have side effects; under contention it can run more than once.
      */
-    private fun persistViewingHabit() {
-        val seen = sessionViewedKeys.size
-        if (seen < SamplingDefaults.MIN_SESSION_FOR_AVERAGE) return
-        val updated = SamplingDefaults.updatedAverage(sessionBaselineAvg, seen)
-        if (kotlin.math.abs(updated - _settings.value.avgViewedPerSession) < 1f) return
-        persistSettings { it.copy(avgViewedPerSession = updated) }
+    private fun persistSettings(block: (AppSettings) -> AppSettings) {
+        _settings.update { block(it.sanitized()).sanitized() }
+        settingsVersion.update { it + 1 }
+    }
+
+    /** Captures the app's recent log off the main thread (it runs `logcat`). */
+    fun captureLogs(onReady: (File) -> Unit) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { LogCapture.captureToCache(getApplication()) }
+                .onSuccess(onReady)
+                .onFailure { showSnack(it.message ?: "Could not capture log") }
+        }
     }
 
     private fun mediaByKey(key: String): MediaItem? =
@@ -1517,21 +1608,36 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         MediaType.OTHER -> false
     }
 
-    private fun tabSourceList(tab: AppTab, albumPath: String?): List<String> {
+    /** The tab whose list a slideshow started from [tab] walks. */
+    private fun listTabFor(tab: AppTab): AppTab = when (tab) {
+        AppTab.FAV, AppTab.RECENT -> tab
+        AppTab.ALBUM -> if (_albumOpen.value != null) AppTab.ALBUM else AppTab.GALLERY
+        // Settings / Multi-Video / Gallery / Slideshow → the gallery order
+        else -> AppTab.GALLERY
+    }
+
+    /** The list [tab]'s grid shows, in on-screen order. */
+    private fun listFor(tab: AppTab): List<MediaItem> {
         val library = libraryState.value
         return when (tab) {
-            AppTab.FAV -> library.favourites.map { it.stableKey }
-            AppTab.RECENT -> library.recent.map { it.stableKey }
-            AppTab.ALBUM -> {
-                if (albumPath != null && library.albumDetail.isNotEmpty()) {
-                    library.albumDetail.map { it.stableKey }
-                } else {
-                    library.gallery.map { it.stableKey }
-                }
-            }
-            // Settings / Multi-Video / Gallery / Slideshow fallback → gallery order
-            else -> library.gallery.map { it.stableKey }
+            AppTab.FAV -> library.favourites
+            AppTab.RECENT -> library.recent
+            AppTab.ALBUM -> library.albumDetail
+            else -> library.gallery
         }
+    }
+
+    private fun tabSourceList(tab: AppTab): List<String> = listFor(tab).map { it.stableKey }
+
+    /**
+     * How far into [tab]'s list the user may already have looked. Read by the library pipeline
+     * (off the main thread): the recorded high-water mark, or at least the page on screen now
+     * plus the parked one after it.
+     */
+    private fun frontierFor(tab: AppTab): Int {
+        val capacity = pageCapacity.coerceAtLeast(1)
+        val onScreen = (_shellUi.value.pageCursors[tab] ?: 0) + 2 * capacity
+        return maxOf(frontiers[tab] ?: 0, onScreen)
     }
 
     private fun currentViewerItem(): MediaItem? =
@@ -1561,28 +1667,24 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         // Favourites-folder copies win on key collisions, matching the previous lookup order.
         for (item in sources.folderFavourites) lookup[item.stableKey] = item
 
-        // Favourites are drawn from a separate pool so they land far more often than their
-        // share of the library would give them.
         val favIds = inputs.favIds
-        // Gallery draw uses the shuffle-time snapshot (see _boostFavIds) so heart taps don't
-        // reshuffle the visible page; the Favourites tab below always uses the live set.
+        // The whole library is dealt once per shuffle, then held still: new media only ever
+        // joins the unseen part, so swiping back always shows the page you saw (ShuffleDeck).
+        // Favourites are dealt from their own pool so they land far more often than their
+        // share of the library would give them. That pool is the favourites as of the shuffle
+        // (_boostFavIds), so the deal is the same one next launch's warm-up predicted.
         val boostIds = sample.boostIds
-        val boosted = ArrayList<MediaItem>()
-        val regular = ArrayList<MediaItem>(playable.size)
-        for (item in playable) {
-            if (item.stableKey in boostIds) boosted += item else regular += item
+        val gallery = galleryDeck.arrange(playable, sample.seed, frontierFor(AppTab.GALLERY)) { pool ->
+            val (boosted, regular) = pool.partition { it.stableKey in boostIds }
+            seededMixedSample(
+                regular = regular,
+                boosted = boosted,
+                seed = sample.seed,
+                count = pool.size,
+                boostedRate = SamplingDefaults.FAVOURITE_RATE,
+            )
         }
-        val liveFavourites =
-            if (boostIds == favIds) boosted else playable.filter { it.stableKey in favIds }
-
-        val limit = sample.limit.coerceAtLeast(SamplingDefaults.MIN_SAMPLE)
-        val gallery = seededMixedSample(
-            regular = regular,
-            boosted = boosted,
-            seed = sample.seed,
-            count = limit,
-            boostedRate = SamplingDefaults.FAVOURITE_RATE,
-        )
+        val liveFavourites = playable.filter { it.stableKey in favIds }
         val favWindow = inputs.favWindow
         val favourites = try {
             if (inputs.copyFavs && inputs.copyFavTreeUri.isNotBlank()) {
@@ -1608,9 +1710,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             android.util.Log.e("GalleryVM", "Favourites filter failed window=$favWindow", t)
             emptyList()
         }
-        // Favourites have no natural order, so they follow the gallery's random draw and
-        // re-deal on the same swipe gesture.
-        val shuffledFavourites = seededSample(favourites, sample.seed, favourites.size)
+        // Favourites have no natural order, so they follow the gallery's shuffle. Held still
+        // the same way, so hearting a photo elsewhere doesn't re-deal the Favourites pages.
+        val shuffledFavourites =
+            favouritesDeck.arrange(favourites, sample.seed, frontierFor(AppTab.FAV)) { pool ->
+                seededSample(pool, sample.seed, pool.size)
+            }
 
         val recentWindow = inputs.recentWindow
         val recent = try {
@@ -1620,7 +1725,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             // Swipe mode is about random sets; scroll mode is about browsing, where newest-first
             // is what "Recent" should mean.
             if (inputs.gridMode == GridMode.SWIPE) {
-                seededSample(matching, sample.seed, matching.size)
+                recentDeck.arrange(matching, sample.seed, frontierFor(AppTab.RECENT)) { pool ->
+                    seededSample(pool, sample.seed, pool.size)
+                }
             } else {
                 matching.sortedByDescending { it.recencyMs }
             }
@@ -1639,7 +1746,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
         val albumDetail = if (sample.albumOpen != null) {
             val albumNorm = setOf(MediaRepository.normalizeFolderPath(sample.albumOpen))
-            playable.filter { MediaRepository.folderMatchesSelection(it.folderPath, albumNorm) }
+            val inAlbum = playable.filter { MediaRepository.folderMatchesSelection(it.folderPath, albumNorm) }
+            sample.albumSeed?.let { seed -> seededSample(inAlbum, seed, inAlbum.size) } ?: inAlbum
         } else {
             emptyList()
         }
@@ -1745,6 +1853,15 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
         /** Persist the farmer checkpoint every N items. */
         const val FARM_CHECKPOINT = 50
+
+        /** Longest the splash screen may wait for the first library content. */
+        const val READY_TIMEOUT_MS = 1_200L
+
+        /** Items past the one on screen that the viewer decodes ahead, so they count as seen. */
+        const val VIEWER_LOOKAHEAD = 4
+
+        /** A settings export is a few KB; anything this big is not one. */
+        const val MAX_SETTINGS_FILE_BYTES = 1_000_000
     }
 
     /** The slice of [AppSettings] that actually changes the media lists. */
@@ -1773,8 +1890,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     private data class SampleInputs(
         val seed: Long,
-        val limit: Int,
         val albumOpen: String?,
+        val albumSeed: Long?,
         val boostIds: Set<String> = emptySet(),
     )
 
@@ -1807,8 +1924,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         val muted: Boolean = false,
         val chromeNonce: Int = 0,
         val returnTab: AppTab = AppTab.GALLERY,
-        /** Gallery lists grow as the sample widens; other tabs are already complete. */
-        val fromGallery: Boolean = false,
+        /** The tab whose list [keys] came from; its grid follows the viewer on close. */
+        val sourceTab: AppTab? = null,
     ) {
         fun currentKey(): String? = keys.getOrNull(index)
 
@@ -1852,6 +1969,19 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         val countsRefreshing: Boolean = false,
     )
 
+}
+
+/** Reads the stream as UTF-8 text, or returns null once it passes [maxBytes]. */
+private fun java.io.InputStream.readTextCapped(maxBytes: Int): String? {
+    val out = java.io.ByteArrayOutputStream()
+    val buffer = ByteArray(8_192)
+    while (true) {
+        val read = read(buffer)
+        if (read < 0) break
+        if (out.size() + read > maxBytes) return null
+        out.write(buffer, 0, read)
+    }
+    return out.toString(Charsets.UTF_8.name())
 }
 
 data class GalleryUiState(

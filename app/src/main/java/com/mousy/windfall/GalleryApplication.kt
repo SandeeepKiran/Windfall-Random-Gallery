@@ -30,11 +30,6 @@ class GalleryApplication : Application(), SingletonImageLoader.Factory {
     override fun newImageLoader(context: PlatformContext): ImageLoader {
         val appContext = this
         val debuggable = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
-        // Older / low-RAM devices (like an Android 11 phone with a small heap) get a smaller
-        // memory cache: the OS thumbnail cache (disk) does the heavy lifting there instead.
-        val activityManager = getSystemService(ActivityManager::class.java)
-        val lowRam = activityManager?.isLowRamDevice == true ||
-            (activityManager?.memoryClass ?: 256) <= 192
         return ImageLoader.Builder(context)
             // Debug builds log every hit/miss, which is how thumbnail-cache regressions get
             // diagnosed instead of guessed at.
@@ -49,11 +44,8 @@ class GalleryApplication : Application(), SingletonImageLoader.Factory {
                 add(AnimatedImageDecoder.Factory())
             }
             .memoryCache {
-                // Thumbnails are the whole product, so this app spends more of its heap on them
-                // than Coil's default. At a ~440KB decoded thumbnail this holds a few hundred,
-                // which is what keeps swipe-back instant instead of re-decoding.
                 MemoryCache.Builder()
-                    .maxSizePercent(context, percent = if (lowRam) 0.25 else 0.45)
+                    .maxSizeBytes(memoryCacheBytes())
                     .build()
             }
             .diskCache {
@@ -63,5 +55,34 @@ class GalleryApplication : Application(), SingletonImageLoader.Factory {
                     .build()
             }
             .build()
+    }
+
+    /**
+     * How much decoded-image memory to keep. Thumbnails are the whole product, so this is
+     * generous: 3% of the phone's RAM, about 15–20 screens of scroll-mode tiles on a 6–8 GB phone.
+     *
+     * The old rule took a share of the Java heap limit, but bitmaps don't live on the Java heap,
+     * and it also treated any phone with a 192 MB heap limit (common on mid-range phones) as
+     * low-RAM. On such a phone the cache held about 60 tiles, so scrolling back a few screens
+     * fetched them all again. Coil empties the cache when the app goes to the background, so the
+     * bigger budget costs nothing while the app isn't on screen.
+     */
+    private fun memoryCacheBytes(): Long {
+        val activityManager = getSystemService(ActivityManager::class.java)
+        val heapBytes = (activityManager?.memoryClass ?: 192) * MB
+        val totalRam = ActivityManager.MemoryInfo()
+            .also { activityManager?.getMemoryInfo(it) }
+            .totalMem
+        // Android Go phones and anything under 3 GB stay modest; the OS thumbnail cache (on
+        // disk) does the heavy lifting there.
+        if (activityManager?.isLowRamDevice == true || totalRam < 3 * GB) {
+            return (heapBytes * 0.25).toLong()
+        }
+        return (totalRam * 0.03).toLong().coerceIn((heapBytes * 0.45).toLong(), 512 * MB)
+    }
+
+    private companion object {
+        const val MB = 1024L * 1024L
+        const val GB = 1024L * MB
     }
 }

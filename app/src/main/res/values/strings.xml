@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Windfall</string>
-    <string name="github_url">https://github.com/SandeeepKiran/My-Random-Gallery</string>
+    <string name="github_url">https://github.com/SandeeepKiran/Windfall-Random-Gallery</string>
     <string name="play_store_url">market://details?id=com.mousy.windfall</string>
     <string name="play_store_web_url">https://play.google.com/store/apps/details?id=com.mousy.windfall</string>
 </resources>

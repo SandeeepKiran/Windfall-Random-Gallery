@@ -49,7 +49,8 @@ fun GalleryScreen(
     pageStart: Int = 0,
     /** Reports (page capacity, thumb bucket px) up to the ViewModel. */
     onPageGeometryChanged: (Int, Int) -> Unit = { _, _ -> },
-    onReachedEnd: (Int) -> Unit = {},
+    /** Scroll mode: (top-left item, last visible item, settled). */
+    onScrolled: (Int, Int, Boolean) -> Unit = { _, _, _ -> },
     onGoSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -106,7 +107,7 @@ fun GalleryScreen(
                 onSetColumns = onSetColumns,
                 thumbnailPadding = thumbnailPadding,
                 hapticsEnabled = hapticsEnabled,
-                onReachedEnd = onReachedEnd,
+                onScrolled = onScrolled,
                 modifier = Modifier.weight(1f),
             )
         }

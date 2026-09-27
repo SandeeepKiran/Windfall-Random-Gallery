@@ -104,13 +104,6 @@ class MediaRepository(private val context: Context) {
         found.distinctBy { it.stableKey }
     }
 
-    suspend fun availableExtensions(selectedFolders: Set<String>): Set<String> =
-        withContext(Dispatchers.IO) {
-            scanMedia(selectedFolders, emptySet(), emptyMap(), emptyMap())
-                .map { it.extension.lowercase(Locale.US) }
-                .toSet()
-        }
-
     /**
      * Count every extension under selected folders (including non-playable types)
      * for the Settings file-type list. Does not apply enabled/disabled filters.
@@ -324,15 +317,13 @@ class MediaRepository(private val context: Context) {
         fileTypeFilters: Map<String, Boolean>,
     ): List<MediaItem> {
         val items = mutableListOf<MediaItem>()
-        var syntheticId = -1L
         for (treeUriStr in treeUris) {
             walkSafTree(treeUriStr) { entry ->
                 val ext = entry.name.substringAfterLast('.', "").lowercase(Locale.US)
                 if (fileTypeFilters.isNotEmpty() && fileTypeFilters[ext] == false) return@walkSafTree
                 val mime = entry.mimeType.ifBlank { guessMime(ext) }
-                syntheticId--
                 items += MediaItem(
-                    id = syntheticId,
+                    id = safItemId(entry.uri),
                     uri = entry.uri,
                     displayName = entry.name,
                     mimeType = mime,
@@ -349,6 +340,18 @@ class MediaRepository(private val context: Context) {
             }
         }
         return items
+    }
+
+    /**
+     * A stable id for a document in an added (SAF) folder, taken from its own address. These ids
+     * used to count down in walk order, so adding one file to a folder gave every file after it
+     * a new key: favourites of those files were lost and the gallery re-dealt. Always negative,
+     * so it can never collide with a MediaStore id.
+     */
+    private fun safItemId(uri: Uri): Long {
+        var hash = FNV_OFFSET
+        for (c in uri.toString()) hash = (hash xor c.code.toLong()) * FNV_PRIME
+        return -(hash and Long.MAX_VALUE) - 1
     }
 
     private data class SafEntry(
@@ -506,6 +509,10 @@ class MediaRepository(private val context: Context) {
     companion object {
         private const val CANCEL_CHECK_ROWS = 512
         private const val MAX_SAF_DIRECTORIES = 4_000
+
+        /** 64-bit FNV-1a, for [safItemId]. */
+        private const val FNV_OFFSET = -0x340d631b7bdddcdbL // 0xcbf29ce484222325
+        private const val FNV_PRIME = 0x100000001b3L
 
         private val mediaCollections = listOf(
             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,

@@ -44,7 +44,9 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
+        // Until settings are read, the app believes no folders are chosen and would draw the
+        // "choose folders" screen for a moment. The ViewModel caps this wait (READY_TIMEOUT_MS).
+        installSplashScreen().setKeepOnScreenCondition { !viewModel.ready.value }
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 

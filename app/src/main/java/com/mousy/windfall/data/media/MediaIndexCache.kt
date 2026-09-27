@@ -104,6 +104,7 @@ class MediaIndexCache(private val context: Context) {
 
     private companion object {
         const val FILE_NAME = "media_index.tsv"
-        const val VERSION = "v1"
+        /** v2: files in added (SAF) folders got stable ids, so v1 snapshots hold stale keys. */
+        const val VERSION = "v2"
     }
 }

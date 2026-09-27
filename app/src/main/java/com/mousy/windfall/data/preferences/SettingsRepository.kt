@@ -2,9 +2,11 @@ package com.mousy.windfall.data.preferences
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -17,16 +19,26 @@ import com.mousy.windfall.data.model.AppTab
 import com.mousy.windfall.data.model.FavWindow
 import com.mousy.windfall.data.model.FileTypeFilter
 import com.mousy.windfall.data.model.GridMode
-import com.mousy.windfall.data.model.SamplingDefaults
 import com.mousy.windfall.data.model.SlideshowSpeeds
 import com.mousy.windfall.data.model.TabFeatures
 import com.mousy.windfall.data.model.ThemeMode
 import com.mousy.windfall.data.model.sanitized
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import org.json.JSONArray
+import org.json.JSONException
+import org.json.JSONObject
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "windfall_settings")
+/**
+ * A settings file damaged on disk used to throw on every read, so the app crashed at every
+ * launch until its data was cleared. It now starts again from defaults (favourites included,
+ * which is the unavoidable cost). Plain read errors are NOT turned into defaults: the ViewModel
+ * saves whole snapshots, so a spurious empty read would be written over the real settings.
+ */
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "windfall_settings",
+    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
+)
 
 class SettingsRepository(private val context: Context) {
 
@@ -34,33 +46,18 @@ class SettingsRepository(private val context: Context) {
         settingsFromPrefs(prefs)
     }
 
-    suspend fun update(transform: (AppSettings) -> AppSettings) {
-        context.dataStore.edit { prefs ->
-            val current = settingsFromPrefs(prefs)
-            val updated = transform(current)
-            writePrefs(prefs, updated)
-        }
+    /** Writes the whole of [settings]; the ViewModel's single writer is the only caller. */
+    suspend fun save(settings: AppSettings) {
+        context.dataStore.edit { prefs -> writePrefs(prefs, settings) }
     }
 
-    suspend fun resetToDefaults(keepFavourites: Boolean = true): AppSettings {
-        val previous = settingsFlow.first()
-        val defaults = AppSettings.defaults().let { d ->
-            if (keepFavourites) d.copy(favIds = previous.favIds) else d
-        }
-        context.dataStore.edit { prefs ->
-            prefs.clear()
-            writePrefs(prefs, defaults)
-        }
-        return defaults
-    }
+    fun exportJson(settings: AppSettings): String = SettingsJson.encode(settings)
 
-    suspend fun exportJson(settings: AppSettings): String = SettingsJson.encode(settings)
-
-    suspend fun importJson(json: String): AppSettings {
-        val imported = SettingsJson.decode(json)
-        update { imported }
-        return imported
-    }
+    /**
+     * [base] with an exported settings file applied on top, or null if [json] isn't one.
+     * Only what the file mentions changes, and favourites are added, never removed.
+     */
+    fun mergeImport(base: AppSettings, json: String): AppSettings? = SettingsJson.merge(base, json)
 
     private fun writePrefs(prefs: androidx.datastore.preferences.core.MutablePreferences, updated: AppSettings) {
         prefs[Keys.THEME_DARK] = updated.themeMode == ThemeMode.DARK
@@ -83,6 +80,7 @@ class SettingsRepository(private val context: Context) {
         prefs[Keys.COPY_FAVS] = updated.copyFavs
         prefs[Keys.COPY_FAV_PATH] = updated.copyFavPath
         prefs[Keys.COPY_FAV_TREE_URI] = updated.copyFavTreeUri
+        prefs[Keys.FAV_COPY_URIS] = updated.favCopyUris
         prefs[Keys.SHOW_ALL_FAVOURITES] = updated.showAllFavourites
         prefs[Keys.HIDDEN_FOLDERS] = encodeHiddenFolders(updated.hiddenFolders)
         prefs[Keys.TAB_FEATURE_MV] = updated.tabFeatures.multivideo
@@ -104,13 +102,14 @@ class SettingsRepository(private val context: Context) {
         prefs[Keys.RECENT_TYPE_AUDIO] = updated.recentTypes.audio
         prefs[Keys.SHUFFLE_SEEDS] = updated.shuffleSeeds.joinToString(",")
         prefs[Keys.SHUFFLE_SEED_INDEX] = updated.shuffleSeedIndex
-        prefs[Keys.AVG_VIEWED_PER_SESSION] = updated.avgViewedPerSession
         prefs[Keys.NEXT_LAUNCH_SEED] = updated.nextLaunchSeed
         prefs[Keys.FARM_FINGERPRINT] = updated.farmFingerprint
         prefs[Keys.FARM_POSITION] = updated.farmPosition
         // Purge the pre-seed history blob: it stored up to 40 x 10k keys as one string.
         if (prefs.contains(Keys.LEGACY_SHUFFLE_HISTORY)) prefs.remove(Keys.LEGACY_SHUFFLE_HISTORY)
         if (prefs.contains(Keys.LEGACY_SHUFFLE_HISTORY_INDEX)) prefs.remove(Keys.LEGACY_SHUFFLE_HISTORY_INDEX)
+        // The adaptive gallery sample (and its viewing average) is gone; see RandomSample.kt.
+        if (prefs.contains(Keys.LEGACY_AVG_VIEWED_PER_SESSION)) prefs.remove(Keys.LEGACY_AVG_VIEWED_PER_SESSION)
     }
 
     private fun settingsFromPrefs(prefs: Preferences): AppSettings {
@@ -175,6 +174,7 @@ class SettingsRepository(private val context: Context) {
             copyFavs = prefs[Keys.COPY_FAVS] ?: false,
             copyFavPath = prefs[Keys.COPY_FAV_PATH] ?: "",
             copyFavTreeUri = prefs[Keys.COPY_FAV_TREE_URI] ?: "",
+            favCopyUris = prefs[Keys.FAV_COPY_URIS] ?: emptySet(),
             showAllFavourites = prefs[Keys.SHOW_ALL_FAVOURITES] ?: false,
             hiddenFolders = decodeHiddenFolders(prefs[Keys.HIDDEN_FOLDERS]),
             tabFeatures = features,
@@ -193,8 +193,6 @@ class SettingsRepository(private val context: Context) {
             recentTypes = recentTypes,
             shuffleSeeds = decodeSeeds(prefs[Keys.SHUFFLE_SEEDS]),
             shuffleSeedIndex = prefs[Keys.SHUFFLE_SEED_INDEX] ?: 0,
-            avgViewedPerSession = prefs[Keys.AVG_VIEWED_PER_SESSION]
-                ?: SamplingDefaults.INITIAL_AVG_VIEWED,
             nextLaunchSeed = prefs[Keys.NEXT_LAUNCH_SEED] ?: 0L,
             farmFingerprint = prefs[Keys.FARM_FINGERPRINT] ?: "",
             farmPosition = prefs[Keys.FARM_POSITION] ?: 0,
@@ -221,6 +219,7 @@ class SettingsRepository(private val context: Context) {
         val COPY_FAVS = booleanPreferencesKey("copy_favs")
         val COPY_FAV_PATH = stringPreferencesKey("copy_fav_path")
         val COPY_FAV_TREE_URI = stringPreferencesKey("copy_fav_tree_uri")
+        val FAV_COPY_URIS = stringSetPreferencesKey("fav_copy_uris")
         val SHOW_ALL_FAVOURITES = booleanPreferencesKey("show_all_favourites")
         val HIDDEN_FOLDERS = stringPreferencesKey("hidden_folders")
         val TAB_FEATURE_MV = booleanPreferencesKey("tab_feature_mv")
@@ -243,7 +242,7 @@ class SettingsRepository(private val context: Context) {
         val TYPE_COUNTS_SCANNED_AT = longPreferencesKey("type_counts_scanned_at")
         val SHUFFLE_SEEDS = stringPreferencesKey("shuffle_seeds")
         val SHUFFLE_SEED_INDEX = intPreferencesKey("shuffle_seed_index")
-        val AVG_VIEWED_PER_SESSION = floatPreferencesKey("avg_viewed_per_session")
+        val LEGACY_AVG_VIEWED_PER_SESSION = floatPreferencesKey("avg_viewed_per_session")
         val NEXT_LAUNCH_SEED = longPreferencesKey("next_launch_seed")
         val FARM_FINGERPRINT = stringPreferencesKey("farm_fingerprint")
         val FARM_POSITION = intPreferencesKey("farm_position")
@@ -336,65 +335,93 @@ class SettingsRepository(private val context: Context) {
     }
 }
 
-private object SettingsJson {
-    fun encode(s: AppSettings): String = buildString {
-        append("{")
-        append("\"theme\":\"${s.themeMode.name.lowercase()}\",")
-        append("\"amoled\":${s.amoled},")
-        append("\"accent\":\"${s.accent.key}\",")
-        append("\"columns\":${s.columns},")
-        append("\"gridMode\":\"${s.gridMode.name.lowercase()}\",")
-        append("\"selectedFolders\":${s.selectedFolders.joinToString(prefix = "[", postfix = "]") { "\"$it\"" }},")
-        append("\"speedIdx\":${s.speedIdx},")
-        append("\"customMs\":${s.customMs},")
-        append("\"recentWindow\":${s.recentWindowDays},")
-        append("\"favWindow\":\"${s.favWindow.encode()}\",")
-        append("\"recentWindowEnc\":\"${s.recentWindow.encode()}\",")
-        append("\"haptics\":${s.hapticsEnabled},")
-        append("\"thumbnailPadding\":${s.thumbnailPadding},")
-        append("\"disableDeleteOptions\":${s.disableDeleteOptions},")
-        append("\"favIds\":${s.favIds.joinToString(prefix = "[", postfix = "]") { "\"$it\"" }}")
-        append("}")
-    }
+/**
+ * Settings export / import format, built on Android's own org.json so values are escaped
+ * properly (the hand-rolled writer broke on a folder name containing a quote).
+ *
+ * Import MERGES: [merge] changes only what the file mentions. The old decoder rebuilt settings
+ * from the file alone, so importing reset folders, file types, hidden folders and tabs to
+ * their defaults, and a file with no favourites list wiped every favourite.
+ */
+internal object SettingsJson {
+    /** Marks a file as ours. Files exported before the marker existed pass on their keys. */
+    private const val FORMAT = "windfall-settings"
+    private val KNOWN_KEYS = setOf(
+        "theme", "amoled", "accent", "columns", "gridMode", "selectedFolders", "speedIdx",
+        "customMs", "recentWindow", "favWindow", "recentWindowEnc", "haptics",
+        "thumbnailPadding", "disableDeleteOptions", "favIds",
+    )
 
-    fun decode(json: String): AppSettings {
-        fun extractString(key: String): String? {
-            val pattern = "\"$key\"\\s*:\\s*\"([^\"]*)\"".toRegex()
-            return pattern.find(json)?.groupValues?.getOrNull(1)
+    fun encode(s: AppSettings): String = JSONObject().apply {
+        put("format", FORMAT)
+        put("version", 1)
+        put("theme", s.themeMode.name.lowercase())
+        put("amoled", s.amoled)
+        put("accent", s.accent.key)
+        put("columns", s.columns)
+        put("gridMode", s.gridMode.name.lowercase())
+        put("selectedFolders", JSONArray(s.selectedFolders.sorted()))
+        put("speedIdx", s.speedIdx)
+        put("customMs", s.customMs)
+        put("recentWindow", s.recentWindowDays)
+        put("favWindow", s.favWindow.encode())
+        put("recentWindowEnc", s.recentWindow.encode())
+        put("haptics", s.hapticsEnabled)
+        put("thumbnailPadding", s.thumbnailPadding)
+        put("disableDeleteOptions", s.disableDeleteOptions)
+        put("favIds", JSONArray(s.favIds.sorted()))
+    }.toString(2)
+
+    /** [base] with the file's settings applied, or null if [json] isn't a settings file. */
+    fun merge(base: AppSettings, json: String): AppSettings? {
+        val o = try {
+            JSONObject(json)
+        } catch (_: JSONException) {
+            return null
         }
-        fun extractBool(key: String): Boolean? =
-            "\"$key\"\\s*:\\s*(true|false)".toRegex().find(json)?.groupValues?.get(1)?.toBooleanStrictOrNull()
-        fun extractInt(key: String): Int? =
-            "\"$key\"\\s*:\\s*(\\d+)".toRegex().find(json)?.groupValues?.get(1)?.toIntOrNull()
+        val ours = o.optString("format") == FORMAT || o.keys().asSequence().any { it in KNOWN_KEYS }
+        if (!ours) return null
 
-        val favWindow = FavWindow.normalize(FavWindow.decode(extractString("favWindow")))
-        val recentWindow = FavWindow.normalize(
-            FavWindow.decode(extractString("recentWindowEnc"))
-                .takeUnless { extractString("recentWindowEnc") == null }
-                ?: FavWindow.fromRecentDays(extractInt("recentWindow") ?: 30),
-        )
+        fun present(key: String) = o.has(key) && !o.isNull(key)
+        fun string(key: String): String? = if (present(key)) o.optString(key) else null
+        fun bool(key: String): Boolean? = if (present(key)) o.opt(key) as? Boolean else null
+        fun number(key: String): Number? = if (present(key)) o.opt(key) as? Number else null
+        fun strings(key: String): Set<String>? = (o.opt(key) as? JSONArray)?.let { array ->
+            (0 until array.length()).mapNotNull { array.opt(it) as? String }.filter { it.isNotBlank() }.toSet()
+        }
 
-        val favIds = "\"favIds\"\\s*:\\s*\\[([^\\]]*)\\]".toRegex().find(json)?.groupValues?.get(1)
-            ?.split(",")
-            ?.map { it.trim().trim('"') }
-            ?.filter { it.isNotEmpty() }
-            ?.toSet() ?: emptySet()
-
-        return AppSettings(
-            themeMode = if (extractString("theme") == "light") ThemeMode.LIGHT else ThemeMode.DARK,
-            amoled = extractBool("amoled") ?: false,
-            accent = AccentColor.fromKey(extractString("accent") ?: AccentColor.DEFAULT.key),
-            columns = extractInt("columns") ?: 3,
-            gridMode = if (extractString("gridMode") == "scroll") GridMode.SCROLL else GridMode.SWIPE,
-            favIds = favIds,
-            speedIdx = extractInt("speedIdx") ?: 2,
-            customMs = extractInt("customMs")?.toLong() ?: 8_000L,
-            recentWindowDays = extractInt("recentWindow") ?: 30,
-            favWindow = favWindow,
-            recentWindow = recentWindow,
-            hapticsEnabled = extractBool("haptics") ?: true,
-            thumbnailPadding = extractBool("thumbnailPadding") ?: true,
-            disableDeleteOptions = extractBool("disableDeleteOptions") ?: false,
-        )
+        val recentWindow = string("recentWindowEnc")?.let(FavWindow::decode)
+            ?: number("recentWindow")?.toInt()?.let(FavWindow::fromRecentDays)
+        val deletesOff = bool("disableDeleteOptions")
+        return base.copy(
+            themeMode = when (string("theme")) {
+                "light" -> ThemeMode.LIGHT
+                "dark" -> ThemeMode.DARK
+                else -> base.themeMode
+            },
+            amoled = bool("amoled") ?: base.amoled,
+            accent = string("accent")?.let(AccentColor::fromKey) ?: base.accent,
+            columns = number("columns")?.toInt()?.coerceIn(1, 6) ?: base.columns,
+            gridMode = when (string("gridMode")) {
+                "scroll" -> GridMode.SCROLL
+                "swipe" -> GridMode.SWIPE
+                else -> base.gridMode
+            },
+            selectedFolders = strings("selectedFolders") ?: base.selectedFolders,
+            speedIdx = number("speedIdx")?.toInt()?.coerceIn(0, SlideshowSpeeds.speeds.lastIndex)
+                ?: base.speedIdx,
+            customMs = number("customMs")?.toLong()?.coerceIn(1_000L, 3_600_000L) ?: base.customMs,
+            recentWindow = recentWindow?.let(FavWindow::normalize) ?: base.recentWindow,
+            recentWindowDays = recentWindow?.let { it.asRecentDays() ?: 365 } ?: base.recentWindowDays,
+            favWindow = string("favWindow")?.let { FavWindow.normalize(FavWindow.decode(it)) }
+                ?: base.favWindow,
+            hapticsEnabled = bool("haptics") ?: base.hapticsEnabled,
+            thumbnailPadding = bool("thumbnailPadding") ?: base.thumbnailPadding,
+            // The two delete toggles are kept in step, as the Settings screen does.
+            disableDeleteOptions = deletesOff ?: base.disableDeleteOptions,
+            disableEditDelete = deletesOff ?: base.disableEditDelete,
+            // Adding is safe; an import never takes a favourite away.
+            favIds = base.favIds + (strings("favIds") ?: emptySet()),
+        ).sanitized()
     }
 }

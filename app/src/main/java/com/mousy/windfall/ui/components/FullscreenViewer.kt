@@ -11,6 +11,7 @@ import android.content.Context
 import android.graphics.BitmapFactory
 import android.media.AudioManager
 import android.media.MediaMetadataRetriever
+import android.view.WindowManager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -205,8 +206,18 @@ fun FullscreenViewer(
     var loopOverride by remember { mutableStateOf<Boolean?>(null) }
 
     // Players prewarmed for neighbours die with the viewer.
+    val activity = LocalActivity.current
     DisposableEffect(Unit) {
-        onDispose { PlayerWarmPool.releaseAll() }
+        onDispose {
+            PlayerWarmPool.releaseAll()
+            // The video brightness gesture overrides the whole window; hand brightness back to
+            // the system on the way out, or the gallery stayed at the video's level.
+            activity?.window?.let { window ->
+                window.attributes = window.attributes.apply {
+                    screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+                }
+            }
+        }
     }
 
     // Auto-hide chrome after inactivity while visible
