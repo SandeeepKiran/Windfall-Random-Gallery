@@ -93,15 +93,11 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    implementation(libs.androidx.compose.material3.adaptive.navigation.suite)
     implementation(libs.androidx.compose.material.icons.extended)
 
     implementation(libs.media3.exoplayer)
-    implementation(libs.media3.ui)
+    // Only ContentFrame is used; the View-based media3-ui and the Material player widgets are not.
     implementation(libs.media3.ui.compose)
-    implementation(libs.media3.ui.compose.material3)
-    // common-ktx kept for Player.listen / future PlayerPool when shipped in artifacts.
-    implementation(libs.media3.common.ktx)
     implementation(libs.coil.compose)
     implementation(libs.coil.video)
     implementation(libs.coil.gif)
@@ -111,4 +107,8 @@ dependencies {
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    // Plain-JVM unit tests (app/src/test). org.json is built into Android but not into the JVM.
+    testImplementation(libs.junit4)
+    testImplementation(libs.json)
 }
