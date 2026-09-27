@@ -6,6 +6,7 @@ on:
     tags:
       - "v*"
 
+# Write access is needed only to create the GitHub Release.
 permissions:
   contents: write
 
@@ -14,11 +15,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The build doesn't need the repo token; don't leave it on disk next to it.
+          persist-credentials: false
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
+
+      # Before the keystore exists on disk.
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest --no-daemon
 
       # The keystore is stored as a base64 GitHub secret, never in the repo.
       - name: Restore signing keystore
@@ -35,6 +43,11 @@ jobs:
         run: |
           ./gradlew assembleRelease --no-daemon
           cp app/build/outputs/apk/release/app-release.apk "Windfall-${GITHUB_REF_NAME}.apk"
+
+      # Gone before any third-party step runs, even if the build failed.
+      - name: Remove signing keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/windfall-release.jks"
 
       - name: Publish release
         uses: softprops/action-gh-release@v2

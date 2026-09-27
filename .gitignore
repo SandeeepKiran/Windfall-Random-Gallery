@@ -24,6 +24,9 @@ output.json
 *.hprof
 *.keystore
 !debug.keystore
+# Signing keys and their passwords must never be committed (the release key is a .jks).
+*.jks
+keystore.properties
 .kotlin/
 
 # Local build logs
