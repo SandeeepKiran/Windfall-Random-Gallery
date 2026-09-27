@@ -49,9 +49,18 @@ jobs:
         if: always()
         run: rm -f "$RUNNER_TEMP/windfall-release.jks"
 
+      # The store changelog for this versionCode becomes the release notes, so GitHub, Play and
+      # F-Droid say the same thing.
+      - name: Release notes from the store changelog
+        run: |
+          code=$(sed -n 's/.*versionCode = \([0-9][0-9]*\).*/\1/p' app/build.gradle.kts | head -n 1)
+          notes="fastlane/metadata/android/en-US/changelogs/${code}.txt"
+          if [ -f "$notes" ]; then cp "$notes" release-notes.md; else echo "Windfall ${GITHUB_REF_NAME}" > release-notes.md; fi
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           name: Windfall ${{ github.ref_name }}
+          body_path: release-notes.md
           generate_release_notes: true
           files: Windfall-${{ github.ref_name }}.apk

@@ -17,7 +17,7 @@
 ## Status after Sep 1, 2026 session — ALL 10 addressed in code; NOT yet built/tested (no Android SDK in sandbox). Build in Android Studio + verify on device before release.
 - [x] 1. Heart refresh fix — gallery draw now uses favIds snapshot frozen at shuffle time (`_boostFavIds` in GalleryViewModel); Favourites tab still live.
 - [x] 2. Backward swipe on first page — wraps to the tail window of the current sample (fresh unseen content), and the swipe strip now parks that same window on the back side, so the settle handoff stays pixel-identical. Sample pre-extends on wrap, so swiping forward from the tail continues seamlessly too. (Old fall-through dealt forward, which made the next forward swipe look 2 pages off. First version of this fix materialised the full cycle and mismatched the strip's parked window — both reworked.)
-- [ ] 3. REOPENED (build 1.1.0: "not working at all"). Diagnosis: nav reuses the surfaces' end-of-gesture pan detection — the same path as the old flick-to-delete, which likely never fired on this device either. Videos additionally swallow slow vertical drags as brightness/volume and require <300ms flicks. NEXT SESSION plan: move detection to a FullscreenViewer-level `pointerInput` on the HorizontalPager (PointerEventPass.Final; accumulate `positionChange()` for dy so child-consumed zoom-pans/brightness drags contribute zero, plus `positionChangeIgnoreConsumed()` for raw dx to guard against pager-consumed horizontal swipes; skip multi-touch; skip quick up-flick when swipe-delete enabled — that stays delete). Then remove the per-surface onSwipeVertical branches. The `onSwipeVertical` lambda by the pager state is the hook to call.
+- [x] 3. FIXED in 1.2.0 (see "Version 1.2.0" at the end). Was REOPENED (build 1.1.0: "not working at all"). Diagnosis: nav reuses the surfaces' end-of-gesture pan detection — the same path as the old flick-to-delete, which likely never fired on this device either. Videos additionally swallow slow vertical drags as brightness/volume and require <300ms flicks. NEXT SESSION plan: move detection to a FullscreenViewer-level `pointerInput` on the HorizontalPager (PointerEventPass.Final; accumulate `positionChange()` for dy so child-consumed zoom-pans/brightness drags contribute zero, plus `positionChangeIgnoreConsumed()` for raw dx to guard against pager-consumed horizontal swipes; skip multi-touch; skip quick up-flick when swipe-delete enabled — that stays delete). Then remove the per-surface onSwipeVertical branches. The `onSwipeVertical` lambda by the pager state is the hook to call.
 - [x] 3-old. Viewer vertical swipe nav (first attempt, superseded) — swipe down = previous, swipe up = next (same pager animation). Root cause of "does nothing": swipe-up was the flick-to-delete gesture, which you have disabled. If swipe-delete is ENABLED in settings, up-flick still deletes (down still = previous).
 - [x] 4. GIF playback — added coil-gif + `AnimatedImageDecoder.Factory()` in GalleryApplication (minSdk 30). Grid thumbs stay static (thumb fetcher), viewer animates.
 - [x] 5. Export settings — root cause: it built the JSON and snacked "exported" without ever writing a file. Now opens a save-as picker (CreateDocument), you choose location + name, snack fires only after the write succeeds.
@@ -79,7 +79,7 @@
       swiping 2 pages forward and back showed identical pages; the slideshow started at page 2's
       top-left and moved on every ~5.2 s in page order; scrolling back up 5 screens in scroll mode
       made 111 thumbnail requests, all 111 from memory (none fetched again).
-- [ ] Item 3 of Sep 1 (viewer vertical swipes) is still REOPENED — untouched this session.
+- [x] Item 3 of Sep 1 (viewer vertical swipes): fixed in 1.2.0, see the section at the end.
 - [x] Decided (Sandeep): Delete now moves files to Android's trash (MediaStore trash request,
       Android's own confirmation, Undo restores). Tested on the emulator: single, multi-select,
       Undo after 5 s. Files MediaStore doesn't know are still only hidden for the session.
@@ -134,7 +134,31 @@ or another app, not by random download file names. Controls that hide after abou
 - [x] On the Redmi K20 Pro (Android 11): 4 and then 6 full-HD (1080p30) videos at once, all in
       real time and in step, all on the hardware decoder (`OMX.qcom.video.decoder.avc`, no
       fallback, no errors). Home freed all 6 players; return resumed them; Back left the wall.
-- [ ] "Other apps…" and "Photo picker" on the Redmi: Sandeep checks these himself, because both
-      show his own media.
-- [ ] Not saved across app restarts, on purpose (picked videos can only be read while the app
-      runs). Revisit if Sandeep wants the layout remembered.
+- [x] "Other apps…" and "Photo picker" on the Redmi: checked by Sandeep himself (they show his
+      own media): both work as expected.
+- [x] Remembered across app restarts (Sandeep: "yes, remember"): how many videos, the screen
+      direction and Fit/Fill, in a small file of Multi-Video's own. The chosen videos are still
+      not kept (picked videos can only be read while the app runs).
+
+---
+
+# Version 1.2.0 — Sep 27, 2026 (evening)
+
+- [x] **Sep 1 item 3 fixed: swipe up/down in the viewer** (up = next, down = previous). Root cause:
+      a real swipe is never perfectly vertical, so the sideways pager claimed it once the finger
+      drifted past its touch slop, then snapped back and cancelled the page change. A one-finger
+      drag is now sorted by its first movement (0.6 × touch slop, before the pager's threshold):
+      mostly up/down is kept from the pager. On videos a swipe under 0.3 s changes item and a slower
+      drag stays brightness/volume. Checked on the emulator: slanted swipes up and down, a steep
+      30° swipe, sideways paging still works.
+- [x] **Shuffle button on the Recent tab** (swipe mode; scroll mode lists Recent newest first).
+      Recent now has its own order: its Shuffle deals Recent again, the Gallery's leaves it alone.
+- [x] **Version bump on every build that leaves the laptop:** 1.2.0 (versionCode 3).
+- [x] Viewer buttons had no names for screen readers (Close, favourite, More options, slideshow
+      play/pause): added.
+- [x] Store listing: `fastlane/metadata/android/en-US` (title, descriptions, changelog, icon,
+      feature graphic, 7 screenshots) and a launch video made with /brag-slim, all on the emulator
+      with generated demo media. The release workflow now uses the changelog as release notes.
+- [ ] Promo video on the Play Store and F-Droid needs a YouTube link (both only take a URL):
+      Sandeep uploads `docs/media/windfall-launch.mp4`, then add the URL to
+      `fastlane/metadata/android/en-US/video.txt` and the Play Console.

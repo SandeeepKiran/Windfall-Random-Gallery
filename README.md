@@ -40,11 +40,29 @@ Built with **Kotlin**, **Jetpack Compose**, and **Material 3**. Runs on **Androi
 
 ## Screenshots
 
-| Gallery | Favourites | Slideshow | Settings |
-|---------|------------|-----------|----------|
-| _Add device screenshots here_ | _Add device screenshots here_ | _Add device screenshots here_ | _Add device screenshots here_ |
+[![Windfall launch video: your photos, shuffled](docs/media/windfall-launch.gif)](docs/media/windfall-launch.mp4)
 
-Tip: capture on a real phone after granting folder access — empty states are intentional until you pick sources.
+*The 23-second launch video. [Watch it in full quality, with sound (MP4)](docs/media/windfall-launch.mp4).*
+
+<p>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.jpg" width="31%" alt="Gallery: your photos, shuffled">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.jpg" width="31%" alt="Viewer: swipe up for the next surprise">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4.jpg" width="31%" alt="Favourites come back more often">
+</p>
+<p>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/5.jpg" width="31%" alt="Recent, shuffled too">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/6.jpg" width="31%" alt="Pick videos by their pictures">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/7.jpg" width="31%" alt="Your colours, your folders">
+</p>
+<p>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.jpg" width="95%" alt="Multi-Video: up to six videos at once">
+</p>
+
+Everything here was made on the Android emulator with generated demo pictures and videos, never
+with anyone's real photos. The store listing (Play Store and F-Droid) lives in
+[`fastlane/metadata/android/en-US/`](fastlane/metadata/android/en-US/): title, descriptions,
+changelogs, icon, feature graphic and these screenshots, all within Play's size rules (at most
+2:1, no transparency).
 
 ---
 
@@ -59,7 +77,7 @@ screen goes to thumbnails.
 |-----|-------------|---------|
 | **Gallery** | Random shuffled grid of your whole library; the order holds still until you shuffle | Always on; app opens here |
 | **Favourites** | Favourited items with type + time filters | On |
-| **Recent** | Recently added files (7–365 day windows) | On |
+| **Recent** | Recently added files (7–365 day windows); in swipe mode a Shuffle button deals them again | On |
 | **Slideshow** | Opens fullscreen viewer / autoplay | On |
 | **Videos (Multi-Video)** | A video wall: 1, 2, 3, 4 or 6 videos tiled edge to edge, nothing else on screen | Off (enable in Settings) |
 | **Albums** | Browse selected folders as albums | Off (enable in Settings) |
@@ -81,7 +99,8 @@ becomes a random set drawn from its date window.
 | Pinch | Grid | Change columns (1–6), continuously — one pinch can cross several steps |
 | Tap | Fullscreen viewer / slideshow | Toggle chrome (top bar **and** bottom tabs) |
 | Swipe L/R | Viewer | Previous / next item |
-| Swipe up | Viewer photos | Move to Android's trash after Android's confirmation (if safety toggles allow) |
+| Swipe up / down | Viewer | Next / previous item. On a video only a quick swipe does this; a slower drag sets brightness (left half) or volume (right half) |
+| Swipe up | Viewer, with "swipe up to delete" on | Move to Android's trash after Android's confirmation (instead of the next item) |
 
 ### Multi-Video (the video wall)
 
@@ -112,8 +131,10 @@ bottom-right 4).
   sound on or off. The wall takes Android's sound focus only while a video with sound plays, so
   music from another app keeps playing under a wall of muted videos.
 - Videos loop. Leaving the app pauses the wall and frees every decoder; coming back carries on
-  where each video was. The wall is not saved when the app closes: videos from the photo picker
-  or another app can only be read while the app runs.
+  where each video was.
+- Windfall remembers how many videos, the screen direction and Fit/Fill, even after it closes.
+  The chosen videos themselves are not kept: videos from the photo picker or another app can only
+  be read while the app runs.
 
 ### Appearance
 
@@ -382,8 +403,9 @@ removed, which made swipe-back show pages you'd never seen. Instead:
   nothing already seen moves.
 
 Only the Shuffle button (or re-tapping Gallery) and a fresh app launch change the order.
-Favourites and Recent (in swipe mode) are held still the same way. `app/src/test` has the rules
-as unit tests.
+Favourites and Recent (in swipe mode) are held still the same way. Favourites follow the
+Gallery's Shuffle; Recent has its own order and its own Shuffle button, so shuffling one never
+changes the other's pages. `app/src/test` has the rules as unit tests.
 
 The seed of the *next launch* is chosen during this session, which is what lets its first page be
 decoded in advance, so a cold start lands on thumbnails rather than an empty grid.
@@ -574,16 +596,26 @@ cd Windfall-Random-Gallery
 
 These are already covered by [`.gitignore`](.gitignore).
 
-### Tag a GitHub Release (debug APK)
+### Publish a release (signed APK)
 
-CI already uploads `app-debug.apk` as an Actions artifact on every push. To also attach it to a **GitHub Release**, push a version tag:
+CI uploads `app-debug.apk` as an Actions artifact on every push. A **GitHub Release** with the
+signed release APK comes from a version tag:
+
+1. Raise `versionCode` and `versionName` in `app/build.gradle.kts` (every build that leaves your
+   laptop gets a new version).
+2. Write the store changelog: `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`
+   (500 characters at most).
+3. Commit, then tag and push:
 
 ```powershell
-git tag v1.0.1
-git push origin v1.0.1
+git tag v1.2.0
+git push origin v1.2.0
 ```
 
-That triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which builds the debug APK and attaches it to the release for tag `v*`.
+That runs [`.github/workflows/release.yml`](.github/workflows/release.yml): unit tests, a
+release build signed with the key kept in the repo's secrets, and a Release named "Windfall
+v1.2.0" with `Windfall-v1.2.0.apk`. Its notes are that version's changelog, followed by the list of
+changes GitHub generates.
 
 Suggested repo topics: `android`, `kotlin`, `jetpack-compose`, `material3`, `gallery`, `mediastore`.
 

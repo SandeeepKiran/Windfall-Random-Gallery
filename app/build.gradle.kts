@@ -13,8 +13,9 @@ android {
         applicationId = "com.mousy.windfall"
         minSdk = 30
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.1.0"
+        // Raise both with every build that leaves this laptop (phone installs, GitHub releases).
+        versionCode = 3
+        versionName = "1.2.0"
 
         vectorDrawables {
             useSupportLibrary = true

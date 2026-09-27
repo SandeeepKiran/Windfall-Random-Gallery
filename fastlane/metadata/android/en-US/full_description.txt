@@ -1,0 +1,18 @@
+Windfall is a gallery for random discovery of your own photos and videos. Instead of the newest-first camera roll, it deals your library at random, so the photos you forgot about come back.
+
+• Random pages: every swipe deals a new random page. Swipe back and the page you saw is still there.
+• In the viewer, swipe up for the next photo and down for the previous one.
+• Favourites: double-tap to heart a photo. Hearted photos come back around more often.
+• Recent: what you added lately, shuffled whenever you like.
+• Slideshow, starting from the page you are on.
+• Multi-Video: watch up to six videos at once, tiled edge to edge with nothing else on screen. Choose them by their pictures: from Windfall's list, Android's photo picker or another app.
+• Photos, GIFs, videos and music. Pinch to change the number of columns.
+• Only the folders you choose.
+• Six accent colours, dark and AMOLED black themes, three app icons.
+• Delete moves files to Android's own trash, with Undo.
+
+Private by design
+Windfall has no internet permission: it cannot go online, and your photos never leave your phone. No accounts, no ads, no tracking.
+
+Free and open source (MIT licence):
+https://github.com/SandeeepKiran/Windfall-Random-Gallery

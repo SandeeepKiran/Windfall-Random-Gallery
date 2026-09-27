@@ -1,0 +1,8 @@
+1.2.0
+• New Multi-Video: up to 6 videos tiled edge to edge, controls that hide, videos picked by their pictures.
+• Swipe up or down in the viewer for the next or previous item.
+• A Shuffle button on the Recent tab.
+• The shuffle holds still: swiping back shows the same page.
+• Slideshows start where you are.
+• Thumbnails come back instantly when you scroll back.
+• Delete moves files to Android's trash, with Undo.
