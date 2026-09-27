@@ -78,4 +78,9 @@
 - [ ] Verify on the Redmi: swipe back never changes a seen page; slideshow start; scroll back
       shows thumbnails instantly (`adb logcat | Select-String "RealImageLoader"` → MEMORY_CACHE).
 - [ ] Item 3 of Sep 1 (viewer vertical swipes) is still REOPENED — untouched this session.
-- [ ] Decide: should Delete really delete (to the system trash), or stay "hide for this session"?
+- [x] Decided (Sandeep): Delete now moves files to Android's trash (MediaStore trash request,
+      Android's own confirmation, Undo restores). Tested on the emulator: single, multi-select,
+      Undo after 5 s. Files MediaStore doesn't know are still only hidden for the session.
+- [x] Decided (Sandeep): keep the page-1 back-swipe wrap to the unseen tail.
+- [x] Debug builds are now "Windfall Debug" (`com.mousy.windfall.debug`), installed beside the
+      real app, so phone tests can use test photos only.

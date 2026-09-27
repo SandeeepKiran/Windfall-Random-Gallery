@@ -81,7 +81,7 @@ becomes a random set drawn from its date window.
 | Pinch | Grid | Change columns (1–6), continuously — one pinch can cross several steps |
 | Tap | Fullscreen viewer / slideshow | Toggle chrome (top bar **and** bottom tabs) |
 | Swipe L/R | Viewer | Previous / next item |
-| Swipe up | Viewer photos | Delete after confirmation (if safety toggles allow) |
+| Swipe up | Viewer photos | Move to Android's trash after Android's confirmation (if safety toggles allow) |
 
 ### Appearance
 
@@ -165,13 +165,15 @@ Add that folder to your PATH, or call `adb.exe` with the full path.
 
 ### After install
 
-Open **Windfall** → allow media access when prompted → go to **More** → **Add folder (SAF)** and pick at least one folder.
+Open **Windfall Debug** → allow media access when prompted → go to **More** → **Add folder (SAF)** and pick at least one folder.
 
-> Debug APKs use the Android debug keystore. For a signed release build, see [Release APK](#release-apk-signed).
+> Debug APKs install as a **separate app**, "Windfall Debug" (`com.mousy.windfall.debug`), next to the
+> real Windfall. They have their own settings and favourites and never replace the real app. For a
+> signed release build, see [Release APK](#release-apk-signed).
 
 ### Launcher icon not updating?
 
-Icon / adaptive-icon changes sometimes stick after a plain reinstall. Uninstall the old app from the phone, then install again (`adb install` without relying on a stale launcher cache), or use `adb uninstall com.mousy.windfall` before `adb install`.
+Icon / adaptive-icon changes sometimes stick after a plain reinstall. Uninstall the old app from the phone, then install again (`adb install` without relying on a stale launcher cache), or use `adb uninstall com.mousy.windfall.debug` (debug build) or `adb uninstall com.mousy.windfall` (release build) before `adb install`.
 
 ---
 
@@ -432,7 +434,10 @@ You do **not** need Android 16 on your phone — **Android 11 is enough**. API 3
 - Favourites-folder sync only ever removes copies **Windfall made itself** (it remembers their
   addresses). Your own files in that folder are never deleted, and nothing is removed while
   **Disable all delete options** is on.
-- **Delete** hides a file in the app for the current session; it does not delete the file.
+- **Delete** moves a file to Android's own trash. Android asks first, the snackbar's **Undo**
+  brings it back, and Android empties its trash after about 30 days. A file Android's media index
+  doesn't know (rare, in some added folders) can't be trashed; it is only hidden until you close
+  the app.
 
 ---
 
