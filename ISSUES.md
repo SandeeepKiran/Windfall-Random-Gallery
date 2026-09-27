@@ -84,3 +84,52 @@
 - [x] Decided (Sandeep): keep the page-1 back-swipe wrap to the unseen tail.
 - [x] Debug builds are now "Windfall Debug" (`com.mousy.windfall.debug`), installed beside the
       real app, so phone tests can use test photos only.
+
+---
+
+# Multi-Video rebuilt — Sep 27, 2026
+
+## What Sandeep asked for
+Watch 4 videos at once in landscape, tiled like windows with no gaps and nothing else on screen
+(top-left 1st, top-right 2nd, bottom-left 3rd, bottom-right 4th). Also 2 videos (portrait, or
+landscape for vertical videos), maybe more than 4, fewer than the tiles allowed. Play all /
+restart all / pause all / mute, plus normal per-video controls. A way out (the old screen had no
+Back and no way to rotate back: he got stuck). Choose videos by their pictures, from the gallery
+or another app, not by random download file names. Controls that hide after about 3 seconds.
+
+## What was wrong with the old one (checked in the old code)
+- Stuck in landscape: entering it hid the Exit button until a tile was tapped (and tapping an
+  empty tile opened the picker instead), and the phone's Back closed the whole app.
+- The picker was a list of file names (audio files included).
+- Only 1, 2 or 4 videos; outside landscape the videos sat in padded cards, not tiles.
+- Per-video controls were play/pause and mute only; the progress bar could not be dragged.
+- Every playing tile wrote its progress into the gallery's shared state 4 times a second, so
+  with 4 videos the whole app's UI state was rebuilt about 16 times a second.
+
+## What it is now (package `multivideo/`, its own ViewModel)
+- Layouts 1 / 2 / 3 / 4 / 6. 2 and 3 sit side by side in landscape and stack in portrait. Six is
+  the cap: each playing video holds a hardware decoder.
+- Screen direction: Landscape (default), Portrait, Auto (follows the sensor even with rotation
+  lock on). Changeable on the wall.
+- Picker: Windfall's own videos (thumbnails, lengths, order numbers), Android's photo picker
+  (ordered selection), or "Other apps…" (chooser over `ACTION_GET_CONTENT`).
+- Wall: only videos until tapped. Controls fade 3 s after the last touch: Exit, Play all, Pause
+  all, Restart all, Mute all / Sound on, Layout, Fit/Fill, direction. The tapped video gets a
+  bar: play/pause, ±10 s, seek, sound, Change, Remove. Double-tap sides skips 10 s. Back exits.
+- Sound: first video only at the start; the wall holds Android's sound focus only while a video
+  with sound plays (verified: focus released on Mute all, taken again on Sound on).
+- Players exist only while the wall is visible; Home frees every decoder, return resumes.
+- Tiles are TextureViews in one keyed grid: layout and rotation changes move tiles instead of
+  rebuilding them. With SurfaceViews, the emulator showed a stretched, cut-off picture after a
+  playing video moved to a new tile.
+
+## Status — builds, 74 unit tests pass (21 new), tested on the emulator with generated videos
+- [x] 4 videos in the right corners; 6 videos; 2 side by side and stacked; Fit and Fill.
+- [x] Per-video sound, pause, ±10 s (exact), double-tap skip; Mute all; Restart; Layout menu.
+- [x] Exit and Back leave the wall (players 0, focus released, rotation back to normal).
+- [x] Home frees all players; return resumes positions; reopening plays everything again.
+- [x] Photo picker (ordered) and the in-app picker; the signed release build too.
+- [ ] On the Redmi: "Other apps…" should list Gallery / Files / Photos (the emulator has only one
+      app for it, so Android skipped the question); 4 real HD videos at once (decoder limits).
+- [ ] Not saved across app restarts, on purpose (picked videos can only be read while the app
+      runs). Revisit if Sandeep wants the layout remembered.

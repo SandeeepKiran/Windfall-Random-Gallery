@@ -24,9 +24,10 @@ See `MediaPermissions.kt` and `AndroidVersionGate.kt`.
 
 | Feature | APIs | Files |
 |---------|------|-------|
-| Slideshow / viewer video | Media3 `ExoPlayer`, `PlayerView` | `FullscreenViewer.kt` |
-| Multi-video grid | Multiple ExoPlayer instances | `MultiVideoScreen.kt` |
-| Landscape lock | `ActivityInfo.SCREEN_ORIENTATION_*` | `MainActivity.kt` |
+| Slideshow / viewer video | Media3 `ExoPlayer`, `ContentFrame` | `FullscreenViewer.kt` |
+| Multi-Video wall | One ExoPlayer per tile, `ContentFrame` on a TextureView, sound focus via `AudioFocusRequest` | `multivideo/WallPlayers.kt`, `multivideo/MultiVideoWall.kt` |
+| Multi-Video picking | Photo picker (`PickMultipleVisualMedia`, ordered), `ACTION_GET_CONTENT` in a chooser | `multivideo/VideoPicker.kt` |
+| Screen direction | `ActivityInfo.SCREEN_ORIENTATION_*` | `multivideo/MultiVideoWall.kt`, `MainActivity.kt` |
 
 ## Gestures
 

@@ -61,7 +61,7 @@ screen goes to thumbnails.
 | **Favourites** | Favourited items with type + time filters | On |
 | **Recent** | Recently added files (7–365 day windows) | On |
 | **Slideshow** | Opens fullscreen viewer / autoplay | On |
-| **Videos (Multi-Video)** | Play 1 / 2 / 4 videos or audio files at once | Off (enable in Settings) |
+| **Videos (Multi-Video)** | A video wall: 1, 2, 3, 4 or 6 videos tiled edge to edge, nothing else on screen | Off (enable in Settings) |
 | **Albums** | Browse selected folders as albums | Off (enable in Settings) |
 | **More** | Settings, appearance, storage tools | Always on |
 
@@ -82,6 +82,38 @@ becomes a random set drawn from its date window.
 | Tap | Fullscreen viewer / slideshow | Toggle chrome (top bar **and** bottom tabs) |
 | Swipe L/R | Viewer | Previous / next item |
 | Swipe up | Viewer photos | Move to Android's trash after Android's confirmation (if safety toggles allow) |
+
+### Multi-Video (the video wall)
+
+Several videos at once, like tiling windows: the screen is split into equal tiles with no gaps,
+filled row by row from the top-left (with 4 videos: top-left 1, top-right 2, bottom-left 3,
+bottom-right 4).
+
+- **Layouts:** 1, 2, 3, 4 or 6 videos. With 2 or 3, the tiles sit side by side in landscape and
+  stack in portrait, so two landscape videos suit portrait and two vertical videos suit landscape.
+  Fewer videos than tiles is fine; the spare tiles stay black. Six is the most, because each
+  playing video uses one of the phone's video decoders and phones run short past about six.
+- **Screen:** Landscape (the default), Portrait, or Auto (turns with the phone even when the
+  phone's rotation lock is on).
+- **Choosing videos** by their pictures, not their file names: Windfall's own list (the videos in
+  the chosen folders, newest first, with their lengths), **Photo picker** (Android's own, every
+  video on the phone, no permission needed), or **Other apps…** (Android asks which app: Gallery,
+  Google Photos, Files…). In Windfall's list and the photo picker, several videos land in the
+  order they were tapped.
+- The setup screen shows the wall in miniature. Tap a tile to change, mute, move or remove its
+  video; hold a tile, then tap another, to swap the two.
+- **On the wall only the videos show.** A tap brings up the controls, which fade 3 seconds after
+  the last touch: **Exit**, Play all, Pause all, Restart all, Mute all, Layout, Fit/Fill
+  (show each video whole, or crop it to fill its tile) and the screen direction. The video last
+  tapped gets its own bar: play/pause, back/forward 10 s, seek bar, sound, **Change** and
+  **Remove**. Double-tap the left or right side of a video to skip 10 s, the middle to pause it.
+  Back always leaves the wall.
+- **Sound:** only the first video has sound at the start; tap a video's number to switch its
+  sound on or off. The wall takes Android's sound focus only while a video with sound plays, so
+  music from another app keeps playing under a wall of muted videos.
+- Videos loop. Leaving the app pauses the wall and frees every decoder; coming back carries on
+  where each video was. The wall is not saved when the app closes: videos from the photo picker
+  or another app can only be read while the app runs.
 
 ### Appearance
 
@@ -303,12 +335,16 @@ nothing more than object construction. Tapping a button therefore never re-filte
 | Layer | Responsibility |
 |-------|----------------|
 | **UI** | Compose screens matching wireframe layouts & Material 3 |
-| **ViewModel** | Port of wireframe state machine (tabs, gestures, slideshow, multi-video) |
+| **ViewModel** | Port of wireframe state machine (tabs, gestures, slideshow); Multi-Video has its own (`multivideo/`) |
 | **Preferences** | Persistent settings via DataStore |
 | **Media** | DEVICE-ONLY scanning, playback, copy/zip |
 | **Version gate** | API 30–36 branching for permissions & privacy APIs |
 
-**Stack:** Compose · Material 3 · ViewModel · DataStore · Media3 1.10 (`ContentFrame`; multi-video uses per-cell `LifecycleStartEffect` — `PlayerPool` not in published 1.10.1 AARs yet) · Coil 3.5 · DocumentFile / SAF
+**Stack:** Compose · Material 3 · ViewModel · DataStore · Media3 1.10 (`ContentFrame`; Multi-Video's ViewModel owns one player per tile, built and released by `WallPlayers`) · Coil 3.5 · DocumentFile / SAF
+
+Multi-Video lives in its own package, `multivideo/`: the pure rules (`WallModels.kt`, unit-tested),
+its ViewModel, the players, the wall, the setup screen and the video picker. The gallery code knows
+nothing about it beyond showing its screens.
 
 Tabs use ViewModel + `AnimatedContent` (navigation-compose removed as unused). Immersive viewer overlays the bottom bar so media does not re-layout when chrome fades.
 
@@ -448,8 +484,9 @@ These need a real device (or emulator with storage) and are marked `DEVICE-ONLY`
 | Feature | APIs | Primary files |
 |---------|------|----------------|
 | Folder access | SAF `OpenDocumentTree`, persistable URI permissions, MediaStore | `MediaRepository.kt`, `GalleryApp.kt` |
-| Video/audio playback | Media3 `ExoPlayer` | `FullscreenViewer.kt`, `MultiVideoScreen.kt` |
-| Landscape multi-video | `ActivityInfo` orientation lock | `MainActivity.kt` |
+| Video/audio playback | Media3 `ExoPlayer` | `FullscreenViewer.kt`, `multivideo/WallPlayers.kt` |
+| Multi-Video screen direction | `ActivityInfo` orientation request | `multivideo/MultiVideoWall.kt`, `MainActivity.kt` |
+| Multi-Video picking | Photo picker (`PickMultipleVisualMedia`), `ACTION_GET_CONTENT` chooser | `multivideo/VideoPicker.kt` |
 | Pinch columns | `detectTransformGestures` | `MediaGrid.kt` |
 | Favourites zip | `ZipOutputStream`, `FileProvider` | `FavouritesExporter.kt` |
 | Favourites folder sync | SAF copy/delete | `FavouritesFolderSync.kt` |
@@ -485,6 +522,7 @@ Windfall-Random-Gallery/
 │       ├── java/com/mousy/windfall/
 │       │   ├── MainActivity.kt
 │       │   ├── data/             # models, DataStore, MediaStore/SAF
+│       │   ├── multivideo/       # the video wall: rules, ViewModel, players, screens
 │       │   ├── viewmodel/        # GalleryViewModel
 │       │   ├── ui/               # Compose screens & theme
 │       │   └── util/             # AndroidVersionGate
@@ -507,7 +545,8 @@ Windfall-Random-Gallery/
 | File-type counts look stale | They're cached from the last scan; tap **Refresh counts** in **More → File Types** |
 | Accent is Rose, not Sand | Sand is the default for new installs; an existing install keeps its stored choice. Pick Sand, or use **Reset all settings** |
 | Permission denied | Re-open app → system settings → allow Photos/Videos; or rely on SAF folders |
-| Videos won’t play | Confirm codec support; try another file; check Multi-Video cell has a selection |
+| Videos won’t play | Confirm codec support; try another file. On the video wall a tile that can't play says so; **Play all** tries it again, and fewer or smaller videos help when the phone's decoders run out |
+| Stuck on the video wall | Press Back, or tap the wall and then **Exit** |
 | Gradle sync fails | Install SDK Platform 36 + Build-Tools; set `sdk.dir` in `local.properties` |
 | `jdk` errors | Use JDK 17+; Android Studio’s embedded JBR is fine |
 | `gradlew.bat` not found / not runnable | From project root use `.\gradlew.bat` in PowerShell |
