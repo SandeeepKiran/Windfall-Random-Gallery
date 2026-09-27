@@ -49,6 +49,10 @@ android {
             )
         }
         debug {
+            // A debug build installs NEXT TO the real app ("Windfall Debug"), never over it: its
+            // own data, its own permissions, and no signing clash with the release key. So a
+            // test build can run on the phone with test photos only.
+            applicationIdSuffix = ".debug"
             isMinifyEnabled = false
             isShrinkResources = false
         }
