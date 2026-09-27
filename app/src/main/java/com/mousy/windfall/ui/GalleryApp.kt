@@ -411,6 +411,7 @@ fun GalleryApp(
                         typeMenuOpen = state.recentTypeMenuOpen,
                         thumbnailPadding = state.settings.thumbnailPadding,
                         gridMode = state.settings.gridMode,
+                        onShuffle = viewModel::shuffleRecent,
                         onSwipeShuffle = viewModel::onGridSwipe,
                         pageStart = state.pageCursors[AppTab.RECENT] ?: 0,
                         onPageGeometryChanged = viewModel::onPageGeometryChanged,

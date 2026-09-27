@@ -43,6 +43,8 @@ fun RecentScreen(
     onGoSettings: () -> Unit,
     /** Shared with the Gallery tab; only the Gallery exposes the toggle. */
     gridMode: GridMode = GridMode.SCROLL,
+    /** Deals Recent a new random order. */
+    onShuffle: () -> Unit = {},
     onSwipeShuffle: (Int) -> Unit = {},
     /** Window position when swipe-paging this tab's list. */
     pageStart: Int = 0,
@@ -62,6 +64,8 @@ fun RecentScreen(
             onToggleTypeMenu = onToggleTypeMenu,
             onToggleType = onToggleType,
             onSelectWindow = onSelectWindow,
+            // Scroll mode lists Recent newest first, so there is nothing to shuffle there.
+            onShuffle = if (gridMode == GridMode.SWIPE) onShuffle else null,
         )
 
         when {

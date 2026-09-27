@@ -1,6 +1,7 @@
 package com.mousy.windfall.ui.components
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -10,8 +11,10 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +48,8 @@ fun MediaListFilterBar(
     /** Favourites only: include items from folders that aren't currently selected. */
     allFoldersEnabled: Boolean? = null,
     onToggleAllFolders: () -> Unit = {},
+    /** A Shuffle button at the end of the bar, like the Gallery's; none when null. */
+    onShuffle: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     var dateMenuOpen by remember { mutableStateOf(false) }
@@ -76,7 +81,7 @@ fun MediaListFilterBar(
             }
         }
         Box {
-            OutlinedButton(onClick = onToggleTypeMenu) {
+            OutlinedButton(onClick = onToggleTypeMenu, contentPadding = CompactButtonPadding) {
                 Icon(Icons.Default.FilterList, null, modifier = Modifier.size(18.dp))
                 Text(typeFilterLabel(types), modifier = Modifier.padding(start = 4.dp))
             }
@@ -104,7 +109,7 @@ fun MediaListFilterBar(
             }
         }
         Box(modifier = Modifier.padding(start = 6.dp)) {
-            OutlinedButton(onClick = { dateMenuOpen = true }) {
+            OutlinedButton(onClick = { dateMenuOpen = true }, contentPadding = CompactButtonPadding) {
                 Icon(Icons.Default.CalendarMonth, null, modifier = Modifier.size(18.dp))
                 Text(safeWindow.shortLabel(), modifier = Modifier.padding(start = 4.dp))
             }
@@ -124,8 +129,19 @@ fun MediaListFilterBar(
                 }
             }
         }
+        if (onShuffle != null) {
+            FilledIconButton(onClick = onShuffle, modifier = Modifier.padding(start = 6.dp)) {
+                Icon(Icons.Default.Shuffle, contentDescription = "Shuffle")
+            }
+        }
     }
 }
+
+/**
+ * Narrower than a stock button's 24 dp sides, so the bar still fits a 360 dp-wide phone once the
+ * Shuffle button joins it.
+ */
+private val CompactButtonPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
 
 fun typeFilterLabel(filter: FileTypeFilter): String {
     val count = listOf(filter.photo, filter.video, filter.gif, filter.audio).count { it }

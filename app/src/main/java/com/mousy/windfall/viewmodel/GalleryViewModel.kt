@@ -102,6 +102,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     private val _shuffleSeed = MutableStateFlow(newShuffleSeed())
 
     /**
+     * Recent's own random order (swipe mode), dealt again only by Recent's Shuffle button, so
+     * shuffling the Gallery doesn't change the Recent pages and the other way round.
+     */
+    private val _recentSeed = MutableStateFlow(newShuffleSeed())
+
+    /**
      * Favourite ids frozen at shuffle time. The gallery's favourite-boosted draw reads THIS
      * set, not the live one, so tapping a heart never re-deals the page you're looking at —
      * the boost only updates on the next real shuffle.
@@ -169,8 +175,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         ) { media, favs, deleted, folders, globalFavs ->
             LibrarySources(media, favs, deleted, folders, globalFavs)
         },
-        combine(_shuffleSeed, _albumOpen, _albumSeed, _boostFavIds) { seed, album, albumSeed, boost ->
-            SampleInputs(seed, album, albumSeed, boost)
+        combine(_shuffleSeed, _recentSeed, _albumOpen, _albumSeed, _boostFavIds) {
+                seed, recentSeed, album, albumSeed, boost ->
+            SampleInputs(seed, recentSeed, album, albumSeed, boost)
         },
     ) { inputs, sources, sample ->
         buildLibraryState(inputs, sources, sample)
@@ -614,9 +621,17 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     fun shuffleGrid() {
         _boostFavIds.value = _settings.value.favIds
         _shuffleSeed.value = newShuffleSeed()
-        // Every deck re-deals on the new seed, so nothing of the new orders has been seen yet.
-        frontiers = emptyMap()
+        // The Gallery and Favourites decks re-deal on the new seed, so nothing of their new
+        // orders has been seen yet. Recent keeps its own order, and so its frontier.
+        frontiers = frontiers.filterKeys { it == AppTab.RECENT }
         setCursor(AppTab.GALLERY, 0)
+    }
+
+    /** Recent's Shuffle button: a brand-new random order for Recent alone, from page one. */
+    fun shuffleRecent() {
+        _recentSeed.value = newShuffleSeed()
+        frontiers = frontiers - AppTab.RECENT
+        setCursor(AppTab.RECENT, 0)
     }
 
     fun onGridSwipe(direction: Int) {
@@ -1647,8 +1662,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             // Swipe mode is about random sets; scroll mode is about browsing, where newest-first
             // is what "Recent" should mean.
             if (inputs.gridMode == GridMode.SWIPE) {
-                recentDeck.arrange(matching, sample.seed, frontierFor(AppTab.RECENT)) { pool ->
-                    seededSample(pool, sample.seed, pool.size)
+                recentDeck.arrange(matching, sample.recentSeed, frontierFor(AppTab.RECENT)) { pool ->
+                    seededSample(pool, sample.recentSeed, pool.size)
                 }
             } else {
                 matching.sortedByDescending { it.recencyMs }
@@ -1817,6 +1832,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     private data class SampleInputs(
         val seed: Long,
+        val recentSeed: Long,
         val albumOpen: String?,
         val albumSeed: Long?,
         val boostIds: Set<String> = emptySet(),
