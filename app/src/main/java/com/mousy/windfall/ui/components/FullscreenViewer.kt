@@ -89,13 +89,16 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.positionChanged
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -381,7 +384,7 @@ fun FullscreenViewer(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onClose) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Close", tint = Color.White)
                 }
                 Text(
                     text = item?.let { formatDate(it.dateTakenMs, it.dateAddedMs) } ?: "",
@@ -397,7 +400,7 @@ fun FullscreenViewer(
                     }) {
                         Icon(
                             if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            null,
+                            contentDescription = if (isPlaying) "Pause slideshow" else "Play slideshow",
                             tint = Color.White,
                         )
                     }
@@ -430,7 +433,7 @@ fun FullscreenViewer(
                         // Outline when not favourited: filled-vs-outline stays readable even in
                         // system greyscale mode, where pink-vs-grey does not.
                         if (isFavourite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        null,
+                        contentDescription = if (isFavourite) "Remove from favourites" else "Add to favourites",
                         tint = if (isFavourite) FavouriteHeart else Color.White.copy(alpha = 0.85f),
                     )
                 }
@@ -438,7 +441,7 @@ fun FullscreenViewer(
                     onUserInteracted()
                     onToggleMenu()
                 }) {
-                    Icon(Icons.Default.MoreVert, null, tint = Color.White)
+                    Icon(Icons.Default.MoreVert, contentDescription = "More options", tint = Color.White)
                 }
             }
         }
@@ -611,10 +614,18 @@ private fun ZoomableImageSurface(
                 )
             }
             .pointerInput(item.stableKey, disableSwipeDelete) {
+                // A one-finger drag is sorted by its first movement: mostly up or down is a swipe
+                // to the next or previous item, mostly sideways is left to the pager. Sorting
+                // happens before the pager's own threshold, and an up/down drag is then kept from
+                // the pager. Before, a slightly slanted swipe became a sideways page drag that
+                // snapped back, so swiping up or down seemed to do nothing.
+                val decideAfter = viewConfiguration.touchSlop * DIRECTION_DECIDE_FRACTION
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
                     var totalPan = Offset.Zero
                     var multipoint = false
+                    var vertical: Boolean? = null
+                    val velocity = VelocityTracker()
                     do {
                         val event = awaitPointerEvent()
                         val pressed = event.changes.filter { it.pressed }
@@ -644,23 +655,24 @@ private fun ZoomableImageSurface(
                                 (offset.y + pan.y).coerceIn(-maxY, maxY),
                             )
                             pressed.forEach { if (it.positionChanged()) it.consume() }
-                        } else if (pressed.size == 1 && scale <= 1.01f) {
-                            val pan = event.calculatePan()
-                            totalPan += pan
+                        } else if (pressed.size == 1 && !multipoint) {
+                            val change = pressed.first()
+                            totalPan += change.positionChange()
+                            velocity.addPosition(change.uptimeMillis, change.position)
+                            if (vertical == null && totalPan.getDistance() > decideAfter) {
+                                vertical = abs(totalPan.y) > abs(totalPan.x)
+                            }
+                            if (vertical == true) change.consume()
                         }
                     } while (event.changes.any { it.pressed })
 
-                    // Horizontal paging belongs to the pager now; only the vertical
-                    // flick-to-delete is detected here (and never consumed, so the pager's
-                    // horizontal drag is unaffected).
-                    if (!multipoint && scale <= 1.01f) {
-                        val absX = abs(totalPan.x)
-                        val absY = abs(totalPan.y)
-                        if (absY > 100f && absY > absX) {
+                    if (vertical == true && !multipoint && scale <= 1.01f) {
+                        val dy = totalPan.y
+                        if (isNavigationSwipe(dy, velocity.calculateVelocity().y)) {
                             when {
-                                // Legacy flick-to-delete keeps priority while it's enabled.
-                                totalPan.y < 0 && !disableSwipeDelete -> onSwipeUpDelete()
-                                totalPan.y < 0 -> onSwipeVertical(1) // up = next media
+                                // Flick-to-delete keeps priority while it's switched on.
+                                dy < 0 && !disableSwipeDelete -> onSwipeUpDelete()
+                                dy < 0 -> onSwipeVertical(1) // up = next media
                                 else -> onSwipeVertical(-1) // down = previous media
                             }
                         }
@@ -853,13 +865,18 @@ private fun MediaPlayerSurface(
                 )
             }
             .pointerInput(item.stableKey, disableSwipeDelete) {
-                // Slow vertical drag = brightness (left half) or media volume (right half).
-                // A quick upward flick (<300 ms) deletes. Horizontal drags fall through to
-                // the pager, which owns prev/next.
+                // One-finger drags are sorted by their first movement, as on photos (see
+                // ZoomableImageSurface): sideways belongs to the pager, up/down stays here. An
+                // up/down swipe quicker than FLICK_MAX_MS shows the next/previous item (or
+                // deletes, on an upward flick while swipe-to-delete is on); a slower drag is
+                // brightness (left half) or media volume (right half).
                 val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                val decideAfter = viewConfiguration.touchSlop * DIRECTION_DECIDE_FRACTION
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     var totalPan = Offset.Zero
+                    var vertical: Boolean? = null
+                    val velocity = VelocityTracker()
                     var adjusting = 0 // 0 none, 1 brightness, 2 volume
                     var lastUptime = down.uptimeMillis
                     val startVolume = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
@@ -870,11 +887,16 @@ private fun MediaPlayerSurface(
                         if (pressed.size == 1) {
                             val change = pressed.first()
                             lastUptime = change.uptimeMillis
-                            totalPan += event.calculatePan()
-                            val slowDrag = change.uptimeMillis - down.uptimeMillis > 150L
-                            if (adjusting == 0 && slowDrag &&
-                                abs(totalPan.y) > 60f && abs(totalPan.y) > abs(totalPan.x) * 1.3f
-                            ) {
+                            totalPan += change.positionChange()
+                            velocity.addPosition(change.uptimeMillis, change.position)
+                            if (vertical == null && totalPan.getDistance() > decideAfter) {
+                                vertical = abs(totalPan.y) > abs(totalPan.x)
+                            }
+                            if (vertical != true) continue
+                            // Kept from the pager, which would otherwise start a sideways drag.
+                            change.consume()
+                            val slowDrag = change.uptimeMillis - down.uptimeMillis > FLICK_MAX_MS
+                            if (adjusting == 0 && slowDrag && abs(totalPan.y) > 60f) {
                                 adjusting = if (down.position.x < size.width / 2f) 1 else 2
                             }
                             if (adjusting != 0) {
@@ -893,22 +915,17 @@ private fun MediaPlayerSurface(
                                     levelValue = b
                                     levelNonce++
                                 }
-                                pressed.forEach { if (it.positionChanged()) it.consume() }
                             }
                         }
                     } while (event.changes.any { it.pressed })
-                    // Horizontal paging belongs to the pager now; only the quick vertical
-                    // flick-to-delete is detected here.
-                    if (adjusting == 0) {
-                        val quickFlick = lastUptime - down.uptimeMillis < 300L
-                        val absX = abs(totalPan.x)
-                        val absY = abs(totalPan.y)
-                        if (absY > 100f && absY > absX && quickFlick) {
+                    if (adjusting == 0 && vertical == true) {
+                        val quickFlick = lastUptime - down.uptimeMillis <= FLICK_MAX_MS
+                        val dy = totalPan.y
+                        if (quickFlick && isNavigationSwipe(dy, velocity.calculateVelocity().y)) {
                             when {
-                                // Legacy flick-to-delete keeps priority while it's enabled;
-                                // slow drags stayed brightness/volume above.
-                                totalPan.y < 0 && !disableSwipeDelete -> onSwipeUpDelete()
-                                totalPan.y < 0 -> onSwipeVertical(1) // up = next media
+                                // Flick-to-delete keeps priority while it's switched on.
+                                dy < 0 && !disableSwipeDelete -> onSwipeUpDelete()
+                                dy < 0 -> onSwipeVertical(1) // up = next media
                                 else -> onSwipeVertical(-1) // down = previous media
                             }
                         }
@@ -1259,6 +1276,26 @@ private fun sampleSizeFor(width: Int, height: Int, target: Int): Int {
 
 private const val SEEK_STEP_MS = 10_000L
 private const val HOLD_SPEED = 2f
+
+/**
+ * A one-finger drag's direction is settled once it has moved this share of the touch slop: early
+ * enough that an up/down swipe is claimed before the pager would start a sideways drag.
+ */
+private const val DIRECTION_DECIDE_FRACTION = 0.6f
+
+/** On a video, an up/down swipe quicker than this changes item; a slower drag adjusts brightness or volume. */
+private const val FLICK_MAX_MS = 300L
+
+/** An up/down swipe changes item after this distance, or a shorter one moving this fast. */
+private val NAV_SWIPE_DISTANCE = 56.dp
+private val NAV_FLING_DISTANCE = 24.dp
+private val NAV_FLING_SPEED_PER_SECOND = 800.dp
+
+private fun Density.isNavigationSwipe(dy: Float, speedY: Float): Boolean {
+    val distance = abs(dy)
+    return distance >= NAV_SWIPE_DISTANCE.toPx() ||
+        (distance >= NAV_FLING_DISTANCE.toPx() && abs(speedY) >= NAV_FLING_SPEED_PER_SECOND.toPx())
+}
 private val PLAYBACK_SPEEDS = listOf(0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
 
 private fun formatSpeed(speed: Float): String =
