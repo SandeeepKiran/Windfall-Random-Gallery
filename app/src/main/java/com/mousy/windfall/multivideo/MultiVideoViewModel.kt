@@ -11,6 +11,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -19,8 +22,9 @@ import kotlinx.coroutines.withContext
  * Multi-Video on its own: which videos go where, the wall's settings, and the players. Kept
  * apart from the gallery's ViewModel, which knows nothing about it.
  *
- * Nothing here is saved across app restarts. Videos chosen through Android's picker or another
- * app can only be read while the app runs, so a saved wall would come back broken.
+ * The wall's settings (how many videos, which way, Fit or Fill) are saved across app restarts.
+ * The chosen videos are not: videos chosen through Android's picker or another app can only be
+ * read while the app runs, so a saved wall would come back broken.
  */
 class MultiVideoViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -39,11 +43,21 @@ class MultiVideoViewModel(application: Application) : AndroidViewModel(applicati
     /** True while the wall is on screen with the app in front. */
     private val wallShowing = MutableStateFlow(false)
 
+    private val prefs = MultiVideoPrefs(application)
+
     init {
         // viewModelScope runs on the main thread, which ExoPlayer requires.
         viewModelScope.launch {
             combine(_state, wallShowing) { state, showing -> state to (showing && state.wallOpen) }
                 .collect { (state, active) -> wallPlayers.sync(state, active) }
+        }
+        viewModelScope.launch {
+            _state.update { it.withWallSettings(prefs.load()) }
+            // Saved from then on, whenever one of them changes (the loaded value itself is skipped).
+            _state.map { it.wallSettings() }
+                .distinctUntilChanged()
+                .drop(1)
+                .collect { prefs.save(it) }
         }
     }
 

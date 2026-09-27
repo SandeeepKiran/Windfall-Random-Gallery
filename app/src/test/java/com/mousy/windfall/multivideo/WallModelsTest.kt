@@ -157,6 +157,35 @@ class WallModelsTest {
         assertFalse(wallOf(a).withSlotCleared(0).hasVideos)
     }
 
+    // --- Saved settings -------------------------------------------------------------------
+
+    @Test
+    fun `saved settings come back as saved`() {
+        val saved = WallSettings.decode("SIX", "PORTRAIT", true)
+        assertEquals(WallSettings(WallLayout.SIX, WallRotation.PORTRAIT, fill = true), saved)
+    }
+
+    @Test
+    fun `nothing saved yet gives the defaults`() {
+        assertEquals(WallSettings(), WallSettings.decode(null, null, null))
+    }
+
+    @Test
+    fun `a name this version doesn't know falls back to the default`() {
+        val saved = WallSettings.decode("NINE", "SIDEWAYS", false)
+        assertEquals(WallLayout.FOUR, saved.layout)
+        assertEquals(WallRotation.LANDSCAPE, saved.rotation)
+    }
+
+    @Test
+    fun `applying saved settings keeps the chosen videos`() {
+        val state = wallOf(a, b).withWallSettings(WallSettings(WallLayout.TWO, WallRotation.AUTO, fill = true))
+        assertEquals(WallLayout.TWO, state.layout)
+        assertTrue(state.fill)
+        assertEquals(listOf(a.uri, b.uri), state.shownSlots.map { it?.uri })
+        assertEquals(state.wallSettings(), WallSettings(WallLayout.TWO, WallRotation.AUTO, fill = true))
+    }
+
     // --- Small helpers --------------------------------------------------------------------
 
     @Test
