@@ -57,7 +57,7 @@ screen goes to thumbnails.
 
 | Tab | Description | Default |
 |-----|-------------|---------|
-| **Gallery** | Random shuffled grid drawn from a seeded slice of your library | Always on; app opens here |
+| **Gallery** | Random shuffled grid of your whole library; the order holds still until you shuffle | Always on; app opens here |
 | **Favourites** | Favourited items with type + time filters | On |
 | **Recent** | Recently added files (7–365 day windows) | On |
 | **Slideshow** | Opens fullscreen viewer / autoplay | On |
@@ -243,7 +243,11 @@ Output: `app\build\outputs\apk\release\app-release.apk`
 
 ### CI
 
-GitHub Actions workflow: [`.github/workflows/android.yml`](.github/workflows/android.yml) runs `assembleDebug` on push/PR.
+GitHub Actions workflow: [`.github/workflows/android.yml`](.github/workflows/android.yml) runs the unit tests and `assembleDebug` on push/PR. Run the tests locally with:
+
+```powershell
+.\gradlew.bat testDebugUnitTest
+```
 
 Release builds run **R8** (`isMinifyEnabled` + `isShrinkResources`), which takes the APK from
 roughly 70 MB debug to about 8 MB. Lint is clean:
@@ -302,7 +306,7 @@ nothing more than object construction. Tapping a button therefore never re-filte
 | **Media** | DEVICE-ONLY scanning, playback, copy/zip |
 | **Version gate** | API 30–36 branching for permissions & privacy APIs |
 
-**Stack:** Compose · Material 3 Adaptive Navigation Suite · ViewModel · DataStore · Media3 1.10 (`ContentFrame`; multi-video uses per-cell `LifecycleStartEffect` — `PlayerPool` not in published 1.10.1 AARs yet) · Coil 3.5 · DocumentFile / SAF
+**Stack:** Compose · Material 3 · ViewModel · DataStore · Media3 1.10 (`ContentFrame`; multi-video uses per-cell `LifecycleStartEffect` — `PlayerPool` not in published 1.10.1 AARs yet) · Coil 3.5 · DocumentFile / SAF
 
 Tabs use ViewModel + `AnimatedContent` (navigation-compose removed as unused). Immersive viewer overlays the bottom bar so media does not re-layout when chrome fades.
 
@@ -323,37 +327,36 @@ CI runs `assembleDebug` only and does not require an emulator for profile genera
 The app is built to stay responsive with folders holding **5,000–10,000+ files**. Four ideas do
 most of the work.
 
-### 1. A seeded random slice, not the whole library
+### 1. One seeded deal, held still
 
-It's a *random* gallery, and a typical session looks at a few hundred items — so the Gallery tab
-prepares a bounded random sample instead of the full set. The sample comes from a **single `Long`
-seed** via a partial Fisher–Yates shuffle: drawing 1,200 of 10,000 costs 1,200 swaps rather than
-shuffling everything.
+The Gallery deals the **whole** filtered library once per shuffle from a **single `Long` seed**
+(a seeded Fisher–Yates; dealing 10,000 items takes well under a millisecond). A page swipe only
+moves a cursor through that order, so swiping back always shows exactly the page you saw.
 
-Because the order is reproducible from the seed, swipe-back history stores **40 numbers** instead
-of 40 pages of file keys, and "load more" can extend the same draw without ever repeating an item.
-Favourites, Recent, and Albums are never sampled — they're already bounded by their own filters.
+The deal is then **held still** by `ShuffleDeck`, because the library changes under you: the
+cold-start scan finds today's photos, Undo brings a hidden file back, a folder or file type gets
+switched on. A plain seeded shuffle re-deals *every* position when even one item is added or
+removed, which made swipe-back show pages you'd never seen. Instead:
 
-Every shuffle draws from the **whole** filtered library, not from the previous slice, so given
-enough shuffles you'll see everything. The slice only bounds how much is prepared at once.
+- items that leave the library are skipped but keep their place, so Undo puts them back where
+  they were;
+- new items are slotted in at random positions **after the furthest point you've looked at**, so
+  nothing already seen moves.
 
-The seed of the *next* set is chosen before you swipe, which is what lets its first page be
-decoded in advance — that's why a shuffle lands on thumbnails rather than an empty grid.
+Only the Shuffle button (or re-tapping Gallery) and a fresh app launch change the order.
+Favourites and Recent (in swipe mode) are held still the same way. `app/src/test` has the rules
+as unit tests.
 
-### 2. A sample size that learns your habits
+The seed of the *next launch* is chosen during this session, which is what lets its first page be
+decoded in advance, so a cold start lands on thumbnails rather than an empty grid.
 
-The app tracks a moving average of how many items you actually view per session (starting at 800),
-sizes the slice to **1.5×** that average clamped to `[600, total]`, and widens it when you reach
-~80% of what's loaded. Sessions shorter than 15 items are ignored, so opening a single photo and
-backing out doesn't drag the average down.
-
-### 3. Nothing heavy on the main thread
+### 2. Nothing heavy on the main thread
 
 List derivation runs on `Dispatchers.Default` and is decoupled from UI toggles (see
 [Architecture](#architecture)). Scans cooperate with cancellation, so changing folders mid-scan
 stops the old one instead of racing it.
 
-### 4. Cheap scans
+### 3. Cheap scans
 
 | Work | Approach |
 |------|----------|
@@ -365,12 +368,22 @@ stops the old one instead of racing it.
 | Folder matching | Selections pre-normalised and lowercased once per scan, not once per row |
 | Folder discovery | Only re-walked when the hidden-folder rules change, not when you tick a source |
 
-### 5. Sizing the thumbnail cache
+### 4. Sizing the thumbnail cache
 
-Coil gets **45%** of the app's memory class (its default is 20%), and each neighbouring random
-set prefetches only about a screenful. Those two numbers are linked: prefetching too eagerly
-evicts the pages you're about to swipe back to, which shows up as thumbnails reloading on every
-swipe even though they were loaded seconds ago.
+Coil's memory cache gets **3% of the phone's RAM** (at least 45% of the app's heap limit, at most
+512 MB; phones under 3 GB keep 25% of the heap limit). Bitmaps live in native memory, not on the
+Java heap, so a heap-based share was too small on phones with a 192 MB heap limit: about 60 tiles,
+and scrolling back a few screens refetched them all. Coil empties the cache when the app goes to
+the background. Each neighbouring random set prefetches only about a screenful: prefetching too
+eagerly evicts the pages you're about to swipe back to.
+
+Grid thumbnails come from Android's own thumbnail cache (`MediaStoreThumbFetcher`). Android hands
+them back at whatever size it likes (often with the short side *below* the tile), and Coil
+refuses to reuse a cached image that looks too small, so every tile that scrolled back into view
+was fetched again. The fetcher now rescales each one to exactly cover its tile before it is
+cached. That makes it reusable, and 2–3× smaller, so the cache holds far more. Tiles and prefetch
+build the very same request (`gridThumbRequest`), a tile that scrolls away cancels its thumbnail
+call instead of letting it finish, and scroll mode only looks ahead once the list comes to rest.
 
 Debug builds attach Coil's `DebugLogger`, so the split is measurable:
 
@@ -413,8 +426,13 @@ You do **not** need Android 16 on your phone — **Android 11 is enough**. API 3
 
 - **No internet permission** — the app does not phone home.
 - **No analytics / ads** in this codebase.
-- Favourites and settings stay on-device unless **you** export them.
+- Favourites and settings stay on-device unless **you** export them: Android backup and
+  device-to-device transfer are both switched off for this app.
 - Zip export **copies** favourites; it never moves or deletes originals for that feature.
+- Favourites-folder sync only ever removes copies **Windfall made itself** (it remembers their
+  addresses). Your own files in that folder are never deleted, and nothing is removed while
+  **Disable all delete options** is on.
+- **Delete** hides a file in the app for the current session; it does not delete the file.
 
 ---
 
@@ -479,7 +497,7 @@ Windfall-Random-Gallery/
 | Problem | What to try |
 |---------|-------------|
 | Empty Gallery | Add at least one SAF folder in **More**; check **File Types** |
-| Gallery shows fewer items than my library | Intentional — a random slice is prepared per session. Every shuffle re-draws from the whole library, so nothing is permanently out of reach |
+| New photos don't show up straight away | Intentional: they join the part of the shuffle you haven't reached yet, so pages you've seen never change. Tap **Shuffle** to deal everything afresh |
 | Grid tiles have gaps | Turn off **Padded thumbnails** in More → Playback & Safety for an edge-to-edge grid (the default for new installs) |
 | File-type counts look stale | They're cached from the last scan; tap **Refresh counts** in **More → File Types** |
 | Accent is Rose, not Sand | Sand is the default for new installs; an existing install keeps its stored choice. Pick Sand, or use **Reset all settings** |

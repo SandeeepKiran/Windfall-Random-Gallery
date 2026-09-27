@@ -26,3 +26,56 @@
 - [x] 8. Heart black border — layered black heart under pink one in MediaGrid.
 - [x] 9. Greyscale-safe heart — viewer toggle now uses outline (FavoriteBorder) when not favourited; grid's black ring also helps.
 - [x] 10. Slideshow — code already opened viewer at index 0 (first media of the random order); also now resets the source tab's page cursor to page 1. If it still misbehaves on device, re-check `selectTab(SLIDESHOW)` path — the installed 1.0.0 build may have differed.
+
+---
+
+# Feedback Log — Sep 27, 2026 (full code review + 3 bugs)
+
+## Bugs reported
+1. **Swiping back (right) flashes and re-shuffles the whole stack.**
+   Root cause: the gallery order was recomputed from (seed + the whole pool of media), and a
+   seeded shuffle of a *different* pool is a different shuffle. Any pool change re-dealt every
+   page: the cold-start scan finding new photos, hiding a file with Delete, Undo, a new file type
+   being switched on. Also, SAF-folder files got ids from a counter, so their keys shifted too.
+   Fix: `ShuffleDeck` deals once per shuffle and then only reconciles (gone items keep their slot,
+   new items go into the part not yet seen). SAF ids now come from the document address.
+   The swipe strip also pre-builds the back-wrap page from page 1, instead of building it
+   mid-drag (the flash).
+2. **Slideshow starts at page 1 every time.** This REVERSES item 10 of Sep 1, at Sandeep's
+   request. It now starts at the top-left item of the page on screen (or top row in scroll
+   mode), or at the photo open in the viewer.
+3. **Scroll mode lags; thumbnails re-render after scrolling back.**
+   Root cause (verified in Android + Coil source): `loadThumbnail()` returns the OS thumbnail
+   shrunk to FIT the box, so the short side is below the tile; Coil then rejects that cached
+   copy as too small and fetches it again every time the tile reappears. Prefetch requests used
+   Coil's defaults (FIT/EXACT) and rejected cached thumbs too, 30 at a time per row scrolled.
+   Fix: thumbnails rescaled to exactly cover the tile before caching, one shared request for
+   tiles and prefetch, real cancellation of off-screen thumbnail calls, idle-only look-ahead.
+
+## Found in review and fixed
+- **Favourites-folder sync could delete ORIGINAL photos** (hearting matched folder files by
+  name). It now removes only copies it made itself, tracked by address, and respects
+  "Disable all delete options".
+- **Import settings wiped folders, file types, hidden folders, tabs** (and favourites if the
+  file had none). Import now merges, refuses non-settings files, caps size, offers Undo.
+- Zip import had no limits and could fill the phone; it extracted into a hidden folder.
+- Backups sent favourites, folder names and the media index off the phone, contrary to the
+  README. Backup and device transfer are now off.
+- Settings could lose a change (the farmer's background save raced taps; stale DataStore
+  echoes overwrote newer settings). One atomic update path plus a single writer.
+- Album "Shuffle" re-dealt the main Gallery instead of the album.
+- Brightness set in a video stayed on the whole app after closing the viewer.
+- Android 14+ never asked for the audio permission, so music never appeared there.
+- Log sharing ran logcat on the main thread and shared folder names; now background + masked.
+- Multi-Video file picks took permanent permissions that could evict the source folders'.
+- Scroll position was lost on tab switch and after a slideshow; now kept per tab.
+- Dead code and 4 unused dependencies removed; unused manifest `<queries>` removed; FileProvider
+  narrowed to `cache/exports` and `cache/logs`; `*.jks` git-ignored; CI runs tests, has a
+  read-only token, and deletes the keystore before the third-party release step.
+- First unit tests: 53 JVM tests in `app/src/test` (deck, sampling, paging, thumbnails, settings).
+
+## Status after Sep 27 session — builds, unit tests pass; NOT yet verified on the phone.
+- [ ] Verify on the Redmi: swipe back never changes a seen page; slideshow start; scroll back
+      shows thumbnails instantly (`adb logcat | Select-String "RealImageLoader"` → MEMORY_CACHE).
+- [ ] Item 3 of Sep 1 (viewer vertical swipes) is still REOPENED — untouched this session.
+- [ ] Decide: should Delete really delete (to the system trash), or stay "hide for this session"?
