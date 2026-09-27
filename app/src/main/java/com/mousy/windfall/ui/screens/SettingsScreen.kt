@@ -336,7 +336,7 @@ fun SettingsScreen(
             ToggleRow(
                 "Disable 'Swipe up to Delete'",
                 settings.disableSwipeDelete,
-                subtitle = "In fullscreen, swipe up on a photo to delete it after confirmation. When on, that gesture is blocked.",
+                subtitle = "In fullscreen, swipe up on a photo to move it to the trash (Android asks first). When on, that gesture is blocked.",
                 onToggle = { onToggleBehaviour("disableSwipeDelete") },
             )
             HorizontalDivider()
@@ -350,7 +350,7 @@ fun SettingsScreen(
             ToggleRow(
                 label = "Haptic feedback",
                 checked = settings.hapticsEnabled,
-                subtitle = "Vibrate lightly when a shuffle or delete is confirmed.",
+                subtitle = "Vibrate lightly on page swipes and favourites.",
                 onToggle = { onToggleBehaviour("hapticsEnabled") },
             )
             HorizontalDivider()

@@ -20,7 +20,8 @@ fun GallerySnackbarHost(
     snackbarHostState: SnackbarHostState,
     message: SnackMessage?,
     onDismiss: () -> Unit,
-    onAction: () -> Unit,
+    /** Gets the message whose action was tapped, which may no longer be the current one. */
+    onAction: (SnackMessage) -> Unit,
 ) {
     LaunchedEffect(message) {
         val m = message ?: return@LaunchedEffect
@@ -30,7 +31,7 @@ fun GallerySnackbarHost(
             withDismissAction = m.actionLabel == null,
         )
         when (result) {
-            SnackbarResult.ActionPerformed -> onAction()
+            SnackbarResult.ActionPerformed -> onAction(m)
             SnackbarResult.Dismissed -> onDismiss()
         }
     }

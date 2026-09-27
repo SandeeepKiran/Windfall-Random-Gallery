@@ -32,47 +32,6 @@ import java.util.Locale
 private val DialogButtonPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp)
 
 @Composable
-fun DeleteConfirmDialog(
-    count: Int,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (count > 1) "Delete $count files?" else "Delete this file?") },
-        text = {
-            Text("This hides the file in the app for this session. You can Undo from the snackbar.")
-        },
-        confirmButton = {
-            TextButton(
-                onClick = onConfirm,
-                contentPadding = DialogButtonPadding,
-                modifier = Modifier.heightIn(min = 52.dp),
-            ) {
-                Text(
-                    "Yes, delete",
-                    color = Color(0xFFE53935),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = onDismiss,
-                contentPadding = DialogButtonPadding,
-                modifier = Modifier.heightIn(min = 52.dp),
-            ) {
-                Text(
-                    "No, keep the file",
-                    color = Color(0xFF43A047),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-            }
-        },
-    )
-}
-
-@Composable
 fun ResetSettingsConfirmDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,

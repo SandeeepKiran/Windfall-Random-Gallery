@@ -9,6 +9,7 @@ import android.content.res.Configuration
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -54,7 +55,6 @@ import com.mousy.windfall.data.model.AppTab
 import com.mousy.windfall.data.model.MediaItem
 import com.mousy.windfall.data.model.MediaType
 import com.mousy.windfall.ui.components.CustomSpeedDialog
-import com.mousy.windfall.ui.components.DeleteConfirmDialog
 import com.mousy.windfall.ui.components.DetailsDialog
 import com.mousy.windfall.ui.components.FullscreenViewer
 import com.mousy.windfall.ui.components.GallerySnackbarHost
@@ -120,7 +120,6 @@ fun GalleryApp(
         state.selectMode ||
         state.detailsOpen ||
         state.customSpeedOpen ||
-        state.confirmDeleteKeys != null ||
         state.confirmResetSettings ||
         state.hiddenFoldersDialog ||
         state.multiVideo.pickerIndex != null ||
@@ -188,6 +187,19 @@ fun GalleryApp(
     ) { uri ->
         uri ?: return@rememberLauncherForActivityResult
         viewModel.importSettingsOrFavourites(uri)
+    }
+
+    // Delete moves files to Android's trash. Android shows its own confirmation for that, so
+    // the ViewModel hands over a prompt and gets told what the user chose.
+    val trashLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult(),
+    ) { result ->
+        viewModel.onTrashPromptResult(confirmed = result.resultCode == Activity.RESULT_OK)
+    }
+    LaunchedEffect(state.trashPrompt) {
+        val prompt = state.trashPrompt ?: return@LaunchedEffect
+        viewModel.onTrashPromptLaunched()
+        trashLauncher.launch(IntentSenderRequest.Builder(prompt.intentSender).build())
     }
 
     // Export settings goes through a real save-as picker: the user chooses WHERE, and the
@@ -625,17 +637,6 @@ fun GalleryApp(
                 // Keep the scrubber and play controls clear of the overlaid tab bar.
                 controlsBottomPadding = viewerControlsPadding,
                 modifier = Modifier.fillMaxSize(),
-            )
-        }
-
-        state.confirmDeleteKeys?.let { keys ->
-            DeleteConfirmDialog(
-                count = keys.size,
-                onConfirm = {
-                    GalleryHaptics.confirm(view, state.settings.hapticsEnabled)
-                    viewModel.confirmDelete()
-                },
-                onDismiss = viewModel::cancelDelete,
             )
         }
 

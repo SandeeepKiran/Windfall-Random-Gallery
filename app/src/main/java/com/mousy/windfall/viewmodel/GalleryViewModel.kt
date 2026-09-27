@@ -30,6 +30,7 @@ import com.mousy.windfall.data.model.seededSample
 import com.mousy.windfall.data.preferences.SettingsRepository
 import coil3.SingletonImageLoader
 import com.mousy.windfall.data.media.MediaIndexCache
+import com.mousy.windfall.data.media.MediaTrash
 import com.mousy.windfall.data.media.warmSystemThumbnail
 import com.mousy.windfall.ui.components.gridThumbRequest
 import com.mousy.windfall.util.AppVisibility
@@ -63,6 +64,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     private val indexCache = MediaIndexCache(application)
     private val favExporter = FavouritesExporter(application)
     private val favSync = FavouritesFolderSync(application)
+    private val mediaTrash = MediaTrash(application)
+
+    /** The trash (or restore) request Android is showing now, waiting for its answer. */
+    private var pendingTrash: PendingTrash? = null
 
     /**
      * The one source of truth for settings once they are restored. Changes land here first
@@ -779,13 +784,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun deleteSelected() {
-        if (_settings.value.deletesDisabled) {
-            showDeleteDisabledPrompt()
-            return
-        }
-        _shellUi.update { it.copy(confirmDeleteKeys = it.selectedKeys.toList()) }
-    }
+    fun deleteSelected() = requestDelete(_shellUi.value.selectedKeys.toList())
 
     fun openViewer(
         keys: List<String>,
@@ -884,7 +883,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             viewer.speedMenuOpen -> _viewerUi.update { it.copy(speedMenuOpen = false) }
             viewer.detailsOpen -> closeDetails()
             viewer.customSpeedOpen -> dismissCustomSpeed()
-            shell.confirmDeleteKeys != null -> cancelDelete()
             shell.confirmResetSettings -> cancelResetSettings()
             shell.hiddenFoldersDialog -> closeHiddenFoldersDialog()
             _transient.value.multiVideo.pickerIndex != null -> closeMultiVideoPicker()
@@ -979,12 +977,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             showSnack("Swipe-up delete is off. Enable it in More → Playback & Safety.")
             return
         }
-        if (s.deletesDisabled) {
-            showDeleteDisabledPrompt()
-            return
-        }
         val key = _viewerUi.value.currentKey() ?: return
-        _shellUi.update { it.copy(confirmDeleteKeys = listOf(key)) }
+        requestDelete(listOf(key))
     }
 
     fun togglePlayPause() {
@@ -1034,26 +1028,85 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun requestDeleteCurrent() {
+        _viewerUi.value.currentKey()?.let { key -> requestDelete(listOf(key)) }
+    }
+
+    /**
+     * Delete = move to Android's trash, where a file stays restorable for about 30 days. Android
+     * asks for confirmation itself, so the app shows no dialog of its own. A file MediaStore
+     * doesn't know can't go to the trash; that one is only hidden until the app closes.
+     */
+    private fun requestDelete(keys: List<String>) {
+        if (keys.isEmpty()) return
         if (_settings.value.deletesDisabled) {
             showDeleteDisabledPrompt()
             return
         }
-        _viewerUi.value.currentKey()?.let { key ->
-            _shellUi.update { it.copy(confirmDeleteKeys = listOf(key)) }
+        viewModelScope.launch {
+            val lookup = libraryState.value.lookup
+            val trashable = LinkedHashMap<String, Uri>()
+            val hideOnly = ArrayList<String>()
+            for (key in keys) {
+                val address = (lookup[key] ?: mediaByKey(key))?.let { mediaTrash.trashableUri(it) }
+                if (address != null) trashable[key] = address else hideOnly += key
+            }
+            if (hideOnly.isNotEmpty()) {
+                hideItems(hideOnly)
+                showSnack(
+                    if (hideOnly.size > 1) {
+                        "${hideOnly.size} files hidden until you close the app. They can't go to the trash."
+                    } else {
+                        "Hidden until you close the app. This file can't go to the trash."
+                    },
+                    "Undo",
+                ) { unhideItems(hideOnly) }
+            }
+            if (trashable.isNotEmpty()) launchTrashPrompt(trashable, restoring = false)
         }
     }
 
-    fun cancelDelete() = _shellUi.update { it.copy(confirmDeleteKeys = null) }
-
-    fun confirmDelete() {
-        val keys = _shellUi.value.confirmDeleteKeys ?: return
-        _shellUi.update {
-            it.copy(confirmDeleteKeys = null, selectedKeys = emptySet(), selectMode = false)
+    private fun launchTrashPrompt(files: Map<String, Uri>, restoring: Boolean) {
+        val sender = runCatching {
+            if (restoring) mediaTrash.restoreRequest(files.values) else mediaTrash.trashRequest(files.values)
+        }.getOrElse {
+            android.util.Log.e("GalleryVM", "Trash request failed", it)
+            showSnack(if (restoring) "Couldn't restore from the trash" else "Couldn't move that to the trash")
+            return
         }
-        val deleted = _deletedKeys.value + keys
-        _deletedKeys.value = deleted
+        pendingTrash = PendingTrash(files, restoring)
+        _transient.update { it.copy(trashPrompt = TrashPrompt(sender)) }
+    }
 
-        val live = _viewerUi.value.keys.filter { it !in deleted }
+    /** The UI has handed the prompt to Android; it must not launch it a second time. */
+    fun onTrashPromptLaunched() = _transient.update { it.copy(trashPrompt = null) }
+
+    /** Android's answer to a trash (or restore) prompt. */
+    fun onTrashPromptResult(confirmed: Boolean) {
+        val pending = pendingTrash ?: return
+        pendingTrash = null
+        if (!confirmed) return
+        val keys = pending.files.keys
+        if (pending.restoring) {
+            unhideItems(keys)
+            // Trashed files left the library; a scan brings them back, into their old places
+            // (the deck kept their slots).
+            refreshMedia()
+            showSnack(if (keys.size > 1) "${keys.size} files restored" else "Restored")
+            return
+        }
+        hideItems(keys)
+        forgetTrashed(keys)
+        showSnack(if (keys.size > 1) "${keys.size} files moved to trash" else "Moved to trash", "Undo") {
+            launchTrashPrompt(pending.files, restoring = true)
+        }
+    }
+
+    /** Takes [keys] out of every list and the open viewer right away, without a rescan. */
+    private fun hideItems(keys: Collection<String>) {
+        _shellUi.update { it.copy(selectedKeys = emptySet(), selectMode = false) }
+        val hidden = _deletedKeys.value + keys
+        _deletedKeys.value = hidden
+        val live = _viewerUi.value.keys.filter { it !in hidden }
         if (_viewerUi.value.open && live.isEmpty()) {
             closeViewer()
         } else if (_viewerUi.value.open) {
@@ -1061,12 +1114,22 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 it.copy(keys = live, index = it.index.coerceAtMost(live.lastIndex.coerceAtLeast(0)))
             }
         }
-        showSnack(
-            if (keys.size > 1) "${keys.size} files deleted" else "File deleted",
-            "Undo",
-        ) {
-            _deletedKeys.value = _deletedKeys.value - keys.toSet()
-        }
+    }
+
+    private fun unhideItems(keys: Collection<String>) {
+        _deletedKeys.value = _deletedKeys.value - keys.toSet()
+    }
+
+    /**
+     * Trashed files are gone from MediaStore. Drop them from the library and from the saved
+     * index too, or the next cold start would draw them for a moment before the scan.
+     */
+    private fun forgetTrashed(keys: Set<String>) {
+        val remaining = _allMedia.value.filter { it.stableKey !in keys }
+        if (remaining.size == _allMedia.value.size) return
+        _allMedia.value = remaining
+        val scanKey = mediaScanKey(_settings.value)
+        viewModelScope.launch { indexCache.save(scanKey, remaining) }
     }
 
     private fun showDeleteDisabledPrompt() {
@@ -1372,18 +1435,25 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     fun showSnack(text: String, actionLabel: String? = null, action: (() -> Unit)? = null) {
         snackJob?.cancel()
-        _transient.update { it.copy(snack = SnackMessage(text, actionLabel, action)) }
+        val message = SnackMessage(text, actionLabel, action)
+        _transient.update { it.copy(snack = message) }
         snackJob = viewModelScope.launch {
-            delay(4_000)
-            _transient.update { it.copy(snack = null) }
+            // An Undo needs time to read and reach; a plain notice doesn't.
+            delay(if (action != null) ACTION_SNACK_MS else SNACK_MS)
+            _transient.update { if (it.snack === message) it.copy(snack = null) else it }
         }
     }
 
     fun dismissSnack() = _transient.update { it.copy(snack = null) }
 
-    fun runSnackAction() {
-        _transient.value.snack?.action?.invoke()
-        _transient.update { it.copy(snack = null) }
+    /**
+     * Runs the action of the message the user actually tapped. Reading the current message
+     * instead lost the tap when the timer cleared it a moment before the snackbar left the
+     * screen: a visible Undo that did nothing.
+     */
+    fun runSnackAction(message: SnackMessage) {
+        message.action?.invoke()
+        _transient.update { if (it.snack === message) it.copy(snack = null) else it }
     }
 
     // Multi-video — DEVICE-ONLY playback wiring in UI layer
@@ -1811,7 +1881,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         customSpeedSeconds = viewer.customSpeedSeconds,
         selectMode = shell.selectMode,
         selectedKeys = shell.selectedKeys,
-        confirmDeleteKeys = shell.confirmDeleteKeys,
+        trashPrompt = transient.trashPrompt,
         confirmResetSettings = shell.confirmResetSettings,
         hiddenFoldersDialog = shell.hiddenFoldersDialog,
         favTypeMenuOpen = shell.favTypeMenuOpen,
@@ -1862,6 +1932,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
         /** A settings export is a few KB; anything this big is not one. */
         const val MAX_SETTINGS_FILE_BYTES = 1_000_000
+
+        /** How long a snackbar stays: a plain notice, and one with an action such as Undo. */
+        const val SNACK_MS = 4_000L
+        const val ACTION_SNACK_MS = 8_000L
     }
 
     /** The slice of [AppSettings] that actually changes the media lists. */
@@ -1954,7 +2028,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         val pageCursors: Map<AppTab, Int> = emptyMap(),
         val selectMode: Boolean = false,
         val selectedKeys: Set<String> = emptySet(),
-        val confirmDeleteKeys: List<String>? = null,
         val confirmResetSettings: Boolean = false,
         val hiddenFoldersDialog: Boolean = false,
         val favTypeMenuOpen: Boolean = false,
@@ -1962,14 +2035,21 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         val collapsedGroups: Set<String> = emptySet(),
     )
 
+    /** Which files a trash (or restore) prompt is about, keyed by stableKey. */
+    private data class PendingTrash(val files: Map<String, Uri>, val restoring: Boolean)
+
     private data class TransientUi(
         val multiVideo: MultiVideoState = MultiVideoState(),
         val snack: SnackMessage? = null,
+        val trashPrompt: TrashPrompt? = null,
         val loading: Boolean = false,
         val countsRefreshing: Boolean = false,
     )
 
 }
+
+/** A confirmation Android shows for moving files to or from its trash; launched by the UI. */
+data class TrashPrompt(val intentSender: android.content.IntentSender)
 
 /** Reads the stream as UTF-8 text, or returns null once it passes [maxBytes]. */
 private fun java.io.InputStream.readTextCapped(maxBytes: Int): String? {
@@ -2028,7 +2108,8 @@ data class GalleryUiState(
     val customSpeedSeconds: Int = 8,
     val selectMode: Boolean = false,
     val selectedKeys: Set<String> = emptySet(),
-    val confirmDeleteKeys: List<String>? = null,
+    /** Android's own trash (or restore) confirmation, for the UI to launch once. */
+    val trashPrompt: TrashPrompt? = null,
     val confirmResetSettings: Boolean = false,
     val hiddenFoldersDialog: Boolean = false,
     val favTypeMenuOpen: Boolean = false,
