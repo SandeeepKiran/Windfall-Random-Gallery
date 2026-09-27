@@ -7,8 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
@@ -183,76 +181,6 @@ fun HiddenFoldersDialog(
                 contentPadding = DialogButtonPadding,
                 modifier = Modifier.heightIn(min = 48.dp),
             ) { Text("Done", style = MaterialTheme.typography.titleMedium) }
-        },
-    )
-}
-
-@Composable
-fun VideoPickerDialog(
-    videos: List<MediaItem>,
-    onSelect: (MediaItem?) -> Unit,
-    onPickGallery: () -> Unit = {},
-    onPickFiles: () -> Unit = {},
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Choose media") },
-        text = {
-            LazyColumn(modifier = Modifier.heightIn(max = 420.dp)) {
-                item {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .clickable { onSelect(null) }
-                            .padding(vertical = 10.dp),
-                    ) {
-                        Text("None (clear)")
-                    }
-                }
-                item {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .clickable(onClick = onPickGallery)
-                            .padding(vertical = 10.dp),
-                    ) {
-                        Text("System gallery / photos…")
-                    }
-                }
-                item {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .clickable(onClick = onPickFiles)
-                            .padding(vertical = 10.dp),
-                    ) {
-                        Text("File explorer…")
-                    }
-                }
-                items(videos, key = { it.stableKey }) { video ->
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .clickable { onSelect(video) }
-                            .padding(vertical = 10.dp),
-                    ) {
-                        Text(
-                            buildString {
-                                append(video.displayName)
-                                if (video.mediaType.name == "AUDIO") append("  ♪")
-                            },
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = onDismiss,
-                contentPadding = DialogButtonPadding,
-                modifier = Modifier.heightIn(min = 48.dp),
-            ) { Text("Close", style = MaterialTheme.typography.titleMedium) }
         },
     )
 }

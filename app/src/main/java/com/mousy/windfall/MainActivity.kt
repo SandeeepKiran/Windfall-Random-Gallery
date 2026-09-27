@@ -19,6 +19,7 @@ import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mousy.windfall.data.media.MediaPermissions
 import com.mousy.windfall.data.model.ThemeMode
+import com.mousy.windfall.multivideo.MultiVideoViewModel
 import com.mousy.windfall.ui.GalleryApp
 import com.mousy.windfall.ui.theme.WindfallTheme
 import com.mousy.windfall.util.AndroidVersionGate
@@ -27,6 +28,7 @@ import com.mousy.windfall.viewmodel.GalleryViewModel
 class MainActivity : ComponentActivity() {
 
     private val viewModel: GalleryViewModel by viewModels()
+    private val multiVideoViewModel: MultiVideoViewModel by viewModels()
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -77,8 +79,10 @@ class MainActivity : ComponentActivity() {
                 ) {
                     GalleryApp(
                         viewModel = viewModel,
+                        multiVideo = multiVideoViewModel,
                         onRequestOrientation = { orientation ->
-                            // DEVICE-ONLY: Multi-Video landscape lock, or sensor for viewer video
+                            // The video wall's chosen direction, or free rotation for a video
+                            // open in the viewer.
                             requestedOrientation = orientation
                         },
                     )

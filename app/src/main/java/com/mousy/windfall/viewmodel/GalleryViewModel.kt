@@ -16,7 +16,6 @@ import com.mousy.windfall.data.model.FileTypeFilter
 import com.mousy.windfall.data.model.GridMode
 import com.mousy.windfall.data.model.MediaItem
 import com.mousy.windfall.data.model.MediaType
-import com.mousy.windfall.data.model.MultiVideoState
 import com.mousy.windfall.data.model.PageWindow
 import com.mousy.windfall.data.model.SamplingDefaults
 import com.mousy.windfall.data.model.ShuffleDeck
@@ -146,7 +145,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     private var slideshowJob: Job? = null
     private var snackJob: Job? = null
-    private var mvOverlayJob: Job? = null
     private var refreshJob: Job? = null
     private var countsJob: Job? = null
     private var farmJob: Job? = null
@@ -541,7 +539,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 closeViewerState()
                 if (tab != AppTab.ALBUM) _albumOpen.value = null
                 _shellUi.update { it.copy(tab = tab, selectMode = false, selectedKeys = emptySet()) }
-                if (tab == AppTab.MULTIVIDEO) showMultiVideoOverlay()
             }
         }
     }
@@ -885,7 +882,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             viewer.customSpeedOpen -> dismissCustomSpeed()
             shell.confirmResetSettings -> cancelResetSettings()
             shell.hiddenFoldersDialog -> closeHiddenFoldersDialog()
-            _transient.value.multiVideo.pickerIndex != null -> closeMultiVideoPicker()
             viewer.open -> closeViewer()
             _albumOpen.value != null -> closeAlbum()
             shell.selectMode -> exitSelectMode()
@@ -1456,150 +1452,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         _transient.update { if (it.snack === message) it.copy(snack = null) else it }
     }
 
-    // Multi-video — DEVICE-ONLY playback wiring in UI layer
-    fun setMultiVideoCount(count: Int) {
-        updateMultiVideo { it.copy(count = count) }
-        showMultiVideoOverlay()
-    }
-
-    fun toggleMultiVideoLandscape() {
-        updateMultiVideo {
-            val entering = !it.landscape
-            it.copy(
-                landscape = entering,
-                chromeVisible = if (entering) false else true,
-                overlayVisible = !entering,
-            )
-        }
-        if (!_transient.value.multiVideo.landscape) showMultiVideoOverlay()
-    }
-
-    fun exitMultiVideoLandscape() {
-        updateMultiVideo { it.copy(landscape = false, chromeVisible = true) }
-        showMultiVideoOverlay()
-    }
-
-    fun onMultiVideoCellTap(index: Int) {
-        val mv = _transient.value.multiVideo
-        val cell = mv.cells.getOrNull(index) ?: return
-        if (cell.uri == null) {
-            openMultiVideoPicker(index)
-            return
-        }
-        if (mv.landscape) {
-            // Immersive: tap toggles chrome overlay
-            updateMultiVideo { it.copy(chromeVisible = !it.chromeVisible, overlayVisible = !it.chromeVisible) }
-            return
-        }
-        if (!mv.overlayVisible) {
-            showMultiVideoOverlay()
-        } else {
-            toggleMultiVideoCellPlay(index)
-        }
-    }
-
-    fun updateMultiVideoProgress(index: Int, progress: Float) {
-        updateMultiVideo { mv ->
-            if (index !in mv.cells.indices) return@updateMultiVideo mv
-            val c = mv.cells[index]
-            if (c.progress == progress) return@updateMultiVideo mv
-            val cells = mv.cells.toMutableList()
-            cells[index] = c.copy(progress = progress.coerceIn(0f, 1f))
-            mv.copy(cells = cells)
-        }
-    }
-
-    fun multiVideoPlayAll() {
-        updateMultiVideo { mv ->
-            mv.copy(cells = mv.cells.mapIndexed { i, c -> if (i < mv.count) c.copy(playing = true) else c })
-        }
-        showMultiVideoOverlay()
-    }
-
-    fun multiVideoPauseAll() {
-        updateMultiVideo { mv ->
-            mv.copy(cells = mv.cells.mapIndexed { i, c -> if (i < mv.count) c.copy(playing = false) else c })
-        }
-    }
-
-    fun multiVideoMuteAll() {
-        updateMultiVideo { mv ->
-            val m = !mv.muteAll
-            mv.copy(muteAll = m, cells = mv.cells.mapIndexed { i, c ->
-                if (i < mv.count) c.copy(muted = m) else c
-            })
-        }
-        showMultiVideoOverlay()
-    }
-
-    fun toggleMultiVideoCellPlay(index: Int) {
-        updateMultiVideo { mv ->
-            val cells = mv.cells.toMutableList()
-            cells[index] = cells[index].copy(playing = !cells[index].playing)
-            mv.copy(cells = cells)
-        }
-        showMultiVideoOverlay()
-    }
-
-    fun toggleMultiVideoCellMute(index: Int) {
-        updateMultiVideo { mv ->
-            val cells = mv.cells.toMutableList()
-            cells[index] = cells[index].copy(muted = !cells[index].muted)
-            mv.copy(cells = cells)
-        }
-    }
-
-    fun openMultiVideoPicker(index: Int) = updateMultiVideo { it.copy(pickerIndex = index) }
-
-    fun closeMultiVideoPicker() = updateMultiVideo { it.copy(pickerIndex = null) }
-
-    fun assignMultiVideo(index: Int, item: MediaItem?) {
-        updateMultiVideo { mv ->
-            val cells = mv.cells.toMutableList()
-            cells[index] = cells[index].copy(
-                mediaId = item?.id,
-                uri = item?.uri?.toString(),
-                displayName = item?.displayName,
-                isAudio = item?.mediaType == MediaType.AUDIO,
-                playing = item != null,
-                progress = 0f,
-            )
-            mv.copy(cells = cells, pickerIndex = null)
-        }
-        showMultiVideoOverlay()
-    }
-
-    fun assignMultiVideoUri(index: Int, uri: String, displayName: String?, isAudio: Boolean) {
-        updateMultiVideo { mv ->
-            val cells = mv.cells.toMutableList()
-            cells[index] = cells[index].copy(
-                mediaId = null,
-                uri = uri,
-                displayName = displayName,
-                isAudio = isAudio,
-                playing = true,
-                progress = 0f,
-            )
-            mv.copy(cells = cells, pickerIndex = null)
-        }
-        showMultiVideoOverlay()
-    }
-
-    fun showMultiVideoOverlay() {
-        mvOverlayJob?.cancel()
-        updateMultiVideo { it.copy(overlayVisible = true) }
-        mvOverlayJob = viewModelScope.launch {
-            delay(3_000)
-            if (_shellUi.value.tab == AppTab.MULTIVIDEO) {
-                updateMultiVideo { it.copy(overlayVisible = false) }
-            }
-        }
-    }
-
-    private inline fun updateMultiVideo(crossinline block: (MultiVideoState) -> MultiVideoState) {
-        _transient.update { it.copy(multiVideo = block(it.multiVideo)) }
-    }
-
     private fun scheduleSlideshow() {
         slideshowJob?.cancel()
         val s = _settings.value
@@ -1806,9 +1658,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             emptyList()
         }
 
-        val videos = playable.filter {
-            it.mediaType == MediaType.VIDEO || it.mediaType == MediaType.AUDIO
-        }
+        // Multi-Video's own list: every video in the chosen folders, newest first. It skips the
+        // file-type switches on purpose, since those shape the gallery's shuffle: someone who
+        // keeps videos out of the gallery may still want them on the video wall.
+        val videos = allMedia
+            .filter { it.mediaType == MediaType.VIDEO && it.stableKey !in deleted }
+            .sortedByDescending { it.recencyMs }
 
         val selectedNormalized = MediaRepository.mediaStoreFolderKeys(inputs.selectedFolders)
         val albums = sources.discovered.filter {
@@ -1887,7 +1742,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         favTypeMenuOpen = shell.favTypeMenuOpen,
         recentTypeMenuOpen = shell.recentTypeMenuOpen,
         collapsedGroups = shell.collapsedGroups,
-        multiVideo = transient.multiVideo,
         snack = transient.snack,
         mediaByKey = library.lookup,
     )
@@ -1910,7 +1764,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     override fun onCleared() {
         slideshowJob?.cancel()
         snackJob?.cancel()
-        mvOverlayJob?.cancel()
         refreshJob?.cancel()
         countsJob?.cancel()
         farmJob?.cancel()
@@ -2039,7 +1892,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     private data class PendingTrash(val files: Map<String, Uri>, val restoring: Boolean)
 
     private data class TransientUi(
-        val multiVideo: MultiVideoState = MultiVideoState(),
         val snack: SnackMessage? = null,
         val trashPrompt: TrashPrompt? = null,
         val loading: Boolean = false,
@@ -2115,7 +1967,6 @@ data class GalleryUiState(
     val favTypeMenuOpen: Boolean = false,
     val recentTypeMenuOpen: Boolean = false,
     val collapsedGroups: Set<String> = emptySet(),
-    val multiVideo: MultiVideoState = MultiVideoState(),
     val snack: SnackMessage? = null,
     val mediaByKey: Map<String, MediaItem> = emptyMap(),
 )

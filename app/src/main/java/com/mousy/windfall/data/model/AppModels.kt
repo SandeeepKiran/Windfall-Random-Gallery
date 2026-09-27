@@ -68,27 +68,6 @@ data class TabFeatures(
     val album: Boolean = false,
 )
 
-data class MultiVideoCell(
-    val index: Int,
-    val mediaId: Long? = null,
-    val uri: String? = null,
-    val displayName: String? = null,
-    val isAudio: Boolean = false,
-    val playing: Boolean = false,
-    val muted: Boolean = false,
-    val progress: Float = 0f,
-)
-
-data class MultiVideoState(
-    val count: Int = 2,
-    val muteAll: Boolean = false,
-    val landscape: Boolean = false,
-    val overlayVisible: Boolean = true,
-    val chromeVisible: Boolean = true,
-    val pickerIndex: Int? = null,
-    val cells: List<MultiVideoCell> = List(4) { MultiVideoCell(index = it) },
-)
-
 data class SnackMessage(
     val text: String,
     val actionLabel: String? = null,

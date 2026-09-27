@@ -60,14 +60,18 @@ import com.mousy.windfall.ui.components.FullscreenViewer
 import com.mousy.windfall.ui.components.GallerySnackbarHost
 import com.mousy.windfall.ui.components.HiddenFoldersDialog
 import com.mousy.windfall.ui.components.ResetSettingsConfirmDialog
+import com.mousy.windfall.multivideo.MultiVideoSetupScreen
+import com.mousy.windfall.multivideo.MultiVideoViewModel
+import com.mousy.windfall.multivideo.MultiVideoWall
+import com.mousy.windfall.multivideo.VideoPicker
+import com.mousy.windfall.multivideo.WallVideo
+import com.mousy.windfall.multivideo.activityOrientation
 import com.mousy.windfall.ui.components.SelectionBar
-import com.mousy.windfall.ui.components.VideoPickerDialog
 import com.mousy.windfall.ui.navigation.GalleryTabBar
 import com.mousy.windfall.ui.navigation.MainScaffold
 import com.mousy.windfall.ui.screens.AlbumsScreen
 import com.mousy.windfall.ui.screens.FavouritesScreen
 import com.mousy.windfall.ui.screens.GalleryScreen
-import com.mousy.windfall.ui.screens.MultiVideoScreen
 import com.mousy.windfall.ui.screens.RecentScreen
 import com.mousy.windfall.ui.screens.SettingsScreen
 import com.mousy.windfall.ui.components.CHROME_ANIM_OUT_MS
@@ -86,9 +90,13 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
 @Composable
 fun GalleryApp(
     viewModel: GalleryViewModel = viewModel(),
+    /** Multi-Video keeps its own ViewModel; the gallery's knows nothing about it. */
+    multiVideo: MultiVideoViewModel = viewModel(),
     onRequestOrientation: (Int) -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val wall by multiVideo.state.collectAsStateWithLifecycle()
+    val videoPicker by multiVideo.picker.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     val view = LocalView.current
@@ -122,7 +130,6 @@ fun GalleryApp(
         state.customSpeedOpen ||
         state.confirmResetSettings ||
         state.hiddenFoldersDialog ||
-        state.multiVideo.pickerIndex != null ||
         state.viewerMenuOpen ||
         state.speedMenuOpen
 
@@ -130,13 +137,15 @@ fun GalleryApp(
         viewModel.handleSystemBack()
     }
 
-    // Fullscreen means fullscreen: drop the status and navigation bars while the viewer is up,
-    // and put them back on the way out. Swiping from an edge still reveals them temporarily.
-    DisposableEffect(state.viewerOpen, view) {
+    // Fullscreen means fullscreen: drop the status and navigation bars while the viewer or the
+    // video wall is up, and put them back on the way out. Swiping from an edge still reveals
+    // them temporarily.
+    val immersive = state.viewerOpen || wall.wallOpen
+    DisposableEffect(immersive, view) {
         val window = context.findActivity()?.window
         val controller = window?.let { WindowCompat.getInsetsController(it, view) }
         if (controller != null) {
-            if (state.viewerOpen) {
+            if (immersive) {
                 controller.systemBarsBehavior =
                     WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                 controller.hide(WindowInsetsCompat.Type.systemBars())
@@ -231,42 +240,16 @@ fun GalleryApp(
         context.startActivity(Intent.createChooser(share, "Save or share zip"))
     }
 
-    val pendingPickerIndex = remember { intArrayOf(-1) }
-
-    val multiPickGallery = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia(),
-    ) { uri ->
-        val idx = pendingPickerIndex[0]
-        if (uri == null || idx < 0) return@rememberLauncherForActivityResult
-        val mime = context.contentResolver.getType(uri).orEmpty()
-        val name = uri.lastPathSegment
-        viewModel.assignMultiVideoUri(idx, uri.toString(), name, mime.startsWith("audio/"))
-        pendingPickerIndex[0] = -1
-    }
-
-    val multiPickFiles = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument(),
-    ) { uri ->
-        val idx = pendingPickerIndex[0]
-        if (uri == null || idx < 0) return@rememberLauncherForActivityResult
-        // No lasting permission: Multi-Video picks aren't saved, and Android caps how many an
-        // app may hold, dropping the OLDEST first, which would be the source folders.
-        val mime = context.contentResolver.getType(uri).orEmpty()
-        val name = uri.lastPathSegment
-        viewModel.assignMultiVideoUri(idx, uri.toString(), name, mime.startsWith("audio/"))
-        pendingPickerIndex[0] = -1
-    }
-
-    // Multi-Video landscape lock wins; otherwise allow sensor rotation while viewing a video.
+    // The video wall faces the way it is set to; otherwise a video in the viewer may turn with
+    // the phone, and everything else follows the phone's own setting.
     LaunchedEffect(
-        state.multiVideo.landscape,
-        state.currentTab,
+        wall.wallOpen,
+        wall.rotation,
         state.viewerOpen,
         state.viewerItem?.mediaType,
     ) {
         val orientation = when {
-            state.currentTab == AppTab.MULTIVIDEO && state.multiVideo.landscape ->
-                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            wall.wallOpen -> wall.rotation.activityOrientation()
             state.viewerOpen && state.viewerItem?.mediaType == MediaType.VIDEO ->
                 ActivityInfo.SCREEN_ORIENTATION_SENSOR
             else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
@@ -287,8 +270,7 @@ fun GalleryApp(
         )
     }
 
-    val hideBottomBar = (state.viewerOpen && !state.viewerChrome) ||
-        (state.currentTab == AppTab.MULTIVIDEO && state.multiVideo.landscape)
+    val hideBottomBar = (state.viewerOpen && !state.viewerChrome) || wall.wallOpen
     // Animated so the viewer's control bar GLIDES down with the departing tab bar instead of
     // snapping by the bar's height the instant chrome hides. Matches CHROME_ANIM_OUT_MS.
     val viewerControlsPadding by animateDpAsState(
@@ -297,393 +279,377 @@ fun GalleryApp(
         label = "viewerControlsPad",
     )
 
-    MainScaffold(
-        currentTab = state.currentTab,
-        visibleTabs = state.visibleTabs,
-        viewerOpen = state.viewerOpen,
-        viewerSlideshowMode = state.viewerSlideshowMode,
-        selectMode = state.selectMode,
-        bottomBarVisible = !hideBottomBar,
-        selectionBar = {
-            SelectionBar(
-                count = state.selectedKeys.size,
-                deleteEnabled = !state.settings.deletesDisabled,
-                onExit = viewModel::exitSelectMode,
-                onFavourite = {
-                    GalleryHaptics.confirm(view, state.settings.hapticsEnabled)
-                    viewModel.favouriteSelected()
-                },
-                onExport = {
-                    viewModel.downloadSelectedZip { uri -> uri?.let(shareZip) }
-                },
-                onDelete = viewModel::deleteSelected,
-            )
-        },
-        snackbarHost = {
-            GallerySnackbarHost(
-                snackbarHostState = snackbarHostState,
-                message = state.snack,
-                onDismiss = viewModel::dismissSnack,
-                onAction = viewModel::runSnackAction,
-            )
-        },
-        onTabSelected = viewModel::selectTab,
-    ) {
-        // Status-bar inset lives here rather than around the whole scaffold so the fullscreen
-        // viewer (a sibling below) stays edge-to-edge without shifting the screen behind it.
-        // The tab bar overlays the bottom, so screens reserve room for it here.
-        Box(
-            Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .padding(bottom = if (hideBottomBar) 0.dp else GalleryTabBar.Height),
+    Box(Modifier.fillMaxSize()) {
+        MainScaffold(
+            currentTab = state.currentTab,
+            visibleTabs = state.visibleTabs,
+            viewerOpen = state.viewerOpen,
+            viewerSlideshowMode = state.viewerSlideshowMode,
+            selectMode = state.selectMode,
+            bottomBarVisible = !hideBottomBar,
+            selectionBar = {
+                SelectionBar(
+                    count = state.selectedKeys.size,
+                    deleteEnabled = !state.settings.deletesDisabled,
+                    onExit = viewModel::exitSelectMode,
+                    onFavourite = {
+                        GalleryHaptics.confirm(view, state.settings.hapticsEnabled)
+                        viewModel.favouriteSelected()
+                    },
+                    onExport = {
+                        viewModel.downloadSelectedZip { uri -> uri?.let(shareZip) }
+                    },
+                    onDelete = viewModel::deleteSelected,
+                )
+            },
+            snackbarHost = {
+                GallerySnackbarHost(
+                    snackbarHostState = snackbarHostState,
+                    message = state.snack,
+                    onDismiss = viewModel::dismissSnack,
+                    onAction = viewModel::runSnackAction,
+                )
+            },
+            onTabSelected = viewModel::selectTab,
         ) {
-            AnimatedContent(
-                targetState = state.currentTab,
-                transitionSpec = {
-                    (fadeIn(spring(stiffness = Spring.StiffnessMediumLow)) +
-                        scaleIn(
-                            initialScale = 0.98f,
-                            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                        )) togetherWith
-                        (fadeOut(spring(stiffness = Spring.StiffnessMedium)) +
-                            scaleOut(
-                                targetScale = 0.98f,
-                                animationSpec = spring(stiffness = Spring.StiffnessMedium),
-                            ))
-                },
-                label = "mainTab",
-                modifier = Modifier.fillMaxSize(),
-            ) { tab ->
-                when (tab) {
-                AppTab.GALLERY -> GalleryScreen(
-                    items = state.gallery,
-                    totalCount = state.galleryTotal,
-                    columns = state.settings.columns,
-                    gridMode = state.settings.gridMode,
-                    noFolders = state.noFolders,
-                    favouriteKeys = state.settings.favIds,
-                    selectedKeys = state.selectedKeys,
-                    thumbnailPadding = state.settings.thumbnailPadding,
-                    hapticsEnabled = state.settings.hapticsEnabled,
-                    onToggleGridMode = viewModel::toggleGridMode,
-                    onCycleColumns = viewModel::cycleColumns,
-                    onShuffle = { viewModel.shuffleGrid() },
-                    onItemClick = { handleItemClick(it, state.gallery, AppTab.GALLERY) },
-                    onItemDoubleTap = {
-                        GalleryHaptics.confirm(view, state.settings.hapticsEnabled)
-                        viewModel.toggleFavourite(it.stableKey)
+            // Status-bar inset lives here rather than around the whole scaffold so the fullscreen
+            // viewer (a sibling below) stays edge-to-edge without shifting the screen behind it.
+            // The tab bar overlays the bottom, so screens reserve room for it here.
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .padding(bottom = if (hideBottomBar) 0.dp else GalleryTabBar.Height),
+            ) {
+                AnimatedContent(
+                    targetState = state.currentTab,
+                    transitionSpec = {
+                        (fadeIn(spring(stiffness = Spring.StiffnessMediumLow)) +
+                            scaleIn(
+                                initialScale = 0.98f,
+                                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                            )) togetherWith
+                            (fadeOut(spring(stiffness = Spring.StiffnessMedium)) +
+                                scaleOut(
+                                    targetScale = 0.98f,
+                                    animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                                ))
                     },
-                    onItemLongPress = { viewModel.enterSelectMode(it.stableKey) },
-                    onSwipeShuffle = viewModel::onGridSwipe,
-                    onSetColumns = viewModel::setColumns,
-                    pageStart = state.pageCursors[AppTab.GALLERY] ?: 0,
-                    onPageGeometryChanged = viewModel::onPageGeometryChanged,
-                    onScrolled = { top, last, settled ->
-                        viewModel.onGridScrolled(AppTab.GALLERY, top, last, settled)
-                    },
-                    onGoSettings = { viewModel.selectTab(AppTab.SETTINGS) },
-                )
-                AppTab.FAV -> FavouritesScreen(
-                    items = state.favourites,
-                    columns = state.settings.columns,
-                    noFolders = state.noFolders,
-                    favouriteKeys = state.settings.favIds + state.favourites.map { it.stableKey }.toSet(),
-                    selectedKeys = state.selectedKeys,
-                    favTypes = state.settings.favTypes,
-                    favWindow = state.settings.favWindow,
-                    favTypeMenuOpen = state.favTypeMenuOpen,
-                    thumbnailPadding = state.settings.thumbnailPadding,
-                    gridMode = state.settings.gridMode,
-                    onSwipeShuffle = viewModel::onGridSwipe,
-                    pageStart = state.pageCursors[AppTab.FAV] ?: 0,
-                    onPageGeometryChanged = viewModel::onPageGeometryChanged,
-                    onScrolled = { top, last, settled ->
-                        viewModel.onGridScrolled(AppTab.FAV, top, last, settled)
-                    },
-                    hapticsEnabled = state.settings.hapticsEnabled,
-                    showAllFolders = state.settings.showAllFavourites,
-                    onToggleAllFolders = viewModel::toggleShowAllFavourites,
-                    onToggleFavTypeMenu = viewModel::toggleFavTypeMenu,
-                    onToggleFavType = viewModel::toggleFavType,
-                    onSelectFavWindow = viewModel::setFavWindow,
-                    onItemClick = { handleItemClick(it, state.favourites, AppTab.FAV) },
-                    onItemDoubleTap = {
-                        GalleryHaptics.confirm(view, state.settings.hapticsEnabled)
-                        viewModel.toggleFavourite(it.stableKey)
-                    },
-                    onItemLongPress = { viewModel.enterSelectMode(it.stableKey) },
-                    onSetColumns = viewModel::setColumns,
-                    onGoSettings = { viewModel.selectTab(AppTab.SETTINGS) },
-                )
-                AppTab.RECENT -> RecentScreen(
-                    items = state.recent,
-                    columns = state.settings.columns,
-                    noFolders = state.noFolders,
-                    favouriteKeys = state.settings.favIds,
-                    selectedKeys = state.selectedKeys,
-                    listTypes = state.settings.recentTypes,
-                    listWindow = state.settings.recentWindow,
-                    typeMenuOpen = state.recentTypeMenuOpen,
-                    thumbnailPadding = state.settings.thumbnailPadding,
-                    gridMode = state.settings.gridMode,
-                    onSwipeShuffle = viewModel::onGridSwipe,
-                    pageStart = state.pageCursors[AppTab.RECENT] ?: 0,
-                    onPageGeometryChanged = viewModel::onPageGeometryChanged,
-                    onScrolled = { top, last, settled ->
-                        viewModel.onGridScrolled(AppTab.RECENT, top, last, settled)
-                    },
-                    hapticsEnabled = state.settings.hapticsEnabled,
-                    onToggleTypeMenu = viewModel::toggleRecentTypeMenu,
-                    onToggleType = viewModel::toggleRecentType,
-                    onSelectWindow = viewModel::setRecentWindow,
-                    onItemClick = { handleItemClick(it, state.recent, AppTab.RECENT) },
-                    onItemDoubleTap = {
-                        GalleryHaptics.confirm(view, state.settings.hapticsEnabled)
-                        viewModel.toggleFavourite(it.stableKey)
-                    },
-                    onItemLongPress = { viewModel.enterSelectMode(it.stableKey) },
-                    onSetColumns = viewModel::setColumns,
-                    onGoSettings = { viewModel.selectTab(AppTab.SETTINGS) },
-                )
-                AppTab.MULTIVIDEO -> MultiVideoScreen(
-                    state = state.multiVideo,
-                    videos = state.videos,
-                    noFolders = state.noFolders,
-                    onToggleLandscape = viewModel::toggleMultiVideoLandscape,
-                    onExitLandscape = viewModel::exitMultiVideoLandscape,
-                    onSetCount = viewModel::setMultiVideoCount,
-                    onPlayAll = viewModel::multiVideoPlayAll,
-                    onPauseAll = viewModel::multiVideoPauseAll,
-                    onMuteAll = viewModel::multiVideoMuteAll,
-                    onCellTap = viewModel::onMultiVideoCellTap,
-                    onTogglePlay = viewModel::toggleMultiVideoCellPlay,
-                    onToggleMute = viewModel::toggleMultiVideoCellMute,
-                    onChooseVideo = viewModel::openMultiVideoPicker,
-                    onProgress = viewModel::updateMultiVideoProgress,
-                    onGoSettings = { viewModel.selectTab(AppTab.SETTINGS) },
-                )
-                AppTab.ALBUM -> AlbumsScreen(
-                    albums = state.albums,
-                    albumOpen = state.albumOpen,
-                    albumItems = state.albumDetail,
-                    columns = state.settings.columns,
-                    noFolders = state.noFolders,
-                    favouriteKeys = state.settings.favIds,
-                    selectedKeys = state.selectedKeys,
-                    thumbnailPadding = state.settings.thumbnailPadding,
-                    onOpenAlbum = viewModel::openAlbum,
-                    onCloseAlbum = viewModel::closeAlbum,
-                    onShuffle = viewModel::shuffleAlbum,
-                    pageStart = state.pageCursors[AppTab.ALBUM] ?: 0,
-                    onScrolled = { top, last, settled ->
-                        viewModel.onGridScrolled(AppTab.ALBUM, top, last, settled)
-                    },
-                    onItemClick = { handleItemClick(it, state.albumDetail, AppTab.ALBUM) },
-                    onItemDoubleTap = { viewModel.toggleFavourite(it.stableKey) },
-                    onItemLongPress = { viewModel.enterSelectMode(it.stableKey) },
-                    onSetColumns = viewModel::setColumns,
-                    onGoSettings = { viewModel.selectTab(AppTab.SETTINGS) },
-                )
-                AppTab.SETTINGS -> SettingsScreen(
-                    settings = state.settings,
-                    discoveredFolders = state.discoveredFolders,
-                    collapsedGroups = state.collapsedGroups,
-                    appVersion = appVersion,
-                    countsRefreshing = state.countsRefreshing,
-                    onRefreshFileTypeCounts = viewModel::refreshFileTypeCounts,
-                    onToggleDark = viewModel::toggleTheme,
-                    onToggleAmoled = viewModel::toggleAmoled,
-                    onSetAccent = viewModel::setAccent,
-                    appIcon = appIcon,
-                    onSetAppIcon = { chosen ->
-                        AppIconSwitcher.set(context, chosen)
-                        appIcon = chosen
-                    },
-                    onMoveTab = viewModel::moveTab,
-                    onToggleTabVisibility = viewModel::toggleTabVisibility,
-                    onToggleFolder = viewModel::toggleFolder,
-                    onToggleGroup = viewModel::toggleGroupCollapsed,
-                    onToggleFileType = viewModel::toggleFileType,
-                    onToggleBehaviour = viewModel::toggleBehaviour,
-                    onToggleCopyFavs = viewModel::toggleCopyFavs,
-                    onToggleShowAllFavourites = viewModel::toggleShowAllFavourites,
-                    onChooseFavFolder = { favFolderLauncher.launch(null) },
-                    onOpenHiddenFolders = viewModel::openHiddenFoldersDialog,
-                    onExportSettings = {
-                        viewModel.exportSettings { json ->
-                            pendingSettingsJson = json
-                            val stamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US)
-                                .format(java.util.Date())
-                            exportSettingsLauncher.launch("windfall_settings_$stamp.json")
-                        }
-                    },
-                    onDownloadFavs = {
-                        viewModel.downloadFavouritesZip { uri -> uri?.let(shareZip) }
-                    },
-                    onImportSettings = {
-                        importLauncher.launch(
-                            arrayOf(
-                                "application/json",
-                                "text/*",
-                                "application/zip",
-                                "application/x-zip-compressed",
-                                "application/octet-stream",
-                            ),
-                        )
-                    },
-                    onAddSafFolder = { safFolderLauncher.launch(null) },
-                    onResetSettings = viewModel::requestResetSettings,
-                    onShareLogs = {
-                        viewModel.captureLogs { file ->
-                            context.startActivity(
-                                Intent.createChooser(LogCapture.shareIntent(context, file), "Share log"),
-                            )
-                        }
-                    },
-                    onOpenGithub = {
-                        runCatching {
-                            context.startActivity(
-                                Intent(Intent.ACTION_VIEW, Uri.parse(githubUrl)),
-                            )
-                        }
-                    },
-                    onOpenRate = {
-                        runCatching {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(playStoreUrl)))
-                        }.onFailure {
-                            runCatching {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(playStoreWebUrl)))
+                    label = "mainTab",
+                    modifier = Modifier.fillMaxSize(),
+                ) { tab ->
+                    when (tab) {
+                    AppTab.GALLERY -> GalleryScreen(
+                        items = state.gallery,
+                        totalCount = state.galleryTotal,
+                        columns = state.settings.columns,
+                        gridMode = state.settings.gridMode,
+                        noFolders = state.noFolders,
+                        favouriteKeys = state.settings.favIds,
+                        selectedKeys = state.selectedKeys,
+                        thumbnailPadding = state.settings.thumbnailPadding,
+                        hapticsEnabled = state.settings.hapticsEnabled,
+                        onToggleGridMode = viewModel::toggleGridMode,
+                        onCycleColumns = viewModel::cycleColumns,
+                        onShuffle = { viewModel.shuffleGrid() },
+                        onItemClick = { handleItemClick(it, state.gallery, AppTab.GALLERY) },
+                        onItemDoubleTap = {
+                            GalleryHaptics.confirm(view, state.settings.hapticsEnabled)
+                            viewModel.toggleFavourite(it.stableKey)
+                        },
+                        onItemLongPress = { viewModel.enterSelectMode(it.stableKey) },
+                        onSwipeShuffle = viewModel::onGridSwipe,
+                        onSetColumns = viewModel::setColumns,
+                        pageStart = state.pageCursors[AppTab.GALLERY] ?: 0,
+                        onPageGeometryChanged = viewModel::onPageGeometryChanged,
+                        onScrolled = { top, last, settled ->
+                            viewModel.onGridScrolled(AppTab.GALLERY, top, last, settled)
+                        },
+                        onGoSettings = { viewModel.selectTab(AppTab.SETTINGS) },
+                    )
+                    AppTab.FAV -> FavouritesScreen(
+                        items = state.favourites,
+                        columns = state.settings.columns,
+                        noFolders = state.noFolders,
+                        favouriteKeys = state.settings.favIds + state.favourites.map { it.stableKey }.toSet(),
+                        selectedKeys = state.selectedKeys,
+                        favTypes = state.settings.favTypes,
+                        favWindow = state.settings.favWindow,
+                        favTypeMenuOpen = state.favTypeMenuOpen,
+                        thumbnailPadding = state.settings.thumbnailPadding,
+                        gridMode = state.settings.gridMode,
+                        onSwipeShuffle = viewModel::onGridSwipe,
+                        pageStart = state.pageCursors[AppTab.FAV] ?: 0,
+                        onPageGeometryChanged = viewModel::onPageGeometryChanged,
+                        onScrolled = { top, last, settled ->
+                            viewModel.onGridScrolled(AppTab.FAV, top, last, settled)
+                        },
+                        hapticsEnabled = state.settings.hapticsEnabled,
+                        showAllFolders = state.settings.showAllFavourites,
+                        onToggleAllFolders = viewModel::toggleShowAllFavourites,
+                        onToggleFavTypeMenu = viewModel::toggleFavTypeMenu,
+                        onToggleFavType = viewModel::toggleFavType,
+                        onSelectFavWindow = viewModel::setFavWindow,
+                        onItemClick = { handleItemClick(it, state.favourites, AppTab.FAV) },
+                        onItemDoubleTap = {
+                            GalleryHaptics.confirm(view, state.settings.hapticsEnabled)
+                            viewModel.toggleFavourite(it.stableKey)
+                        },
+                        onItemLongPress = { viewModel.enterSelectMode(it.stableKey) },
+                        onSetColumns = viewModel::setColumns,
+                        onGoSettings = { viewModel.selectTab(AppTab.SETTINGS) },
+                    )
+                    AppTab.RECENT -> RecentScreen(
+                        items = state.recent,
+                        columns = state.settings.columns,
+                        noFolders = state.noFolders,
+                        favouriteKeys = state.settings.favIds,
+                        selectedKeys = state.selectedKeys,
+                        listTypes = state.settings.recentTypes,
+                        listWindow = state.settings.recentWindow,
+                        typeMenuOpen = state.recentTypeMenuOpen,
+                        thumbnailPadding = state.settings.thumbnailPadding,
+                        gridMode = state.settings.gridMode,
+                        onSwipeShuffle = viewModel::onGridSwipe,
+                        pageStart = state.pageCursors[AppTab.RECENT] ?: 0,
+                        onPageGeometryChanged = viewModel::onPageGeometryChanged,
+                        onScrolled = { top, last, settled ->
+                            viewModel.onGridScrolled(AppTab.RECENT, top, last, settled)
+                        },
+                        hapticsEnabled = state.settings.hapticsEnabled,
+                        onToggleTypeMenu = viewModel::toggleRecentTypeMenu,
+                        onToggleType = viewModel::toggleRecentType,
+                        onSelectWindow = viewModel::setRecentWindow,
+                        onItemClick = { handleItemClick(it, state.recent, AppTab.RECENT) },
+                        onItemDoubleTap = {
+                            GalleryHaptics.confirm(view, state.settings.hapticsEnabled)
+                            viewModel.toggleFavourite(it.stableKey)
+                        },
+                        onItemLongPress = { viewModel.enterSelectMode(it.stableKey) },
+                        onSetColumns = viewModel::setColumns,
+                        onGoSettings = { viewModel.selectTab(AppTab.SETTINGS) },
+                    )
+                    // Works without any folders chosen: videos can come from Android's picker too.
+                    AppTab.MULTIVIDEO -> MultiVideoSetupScreen(viewModel = multiVideo)
+                    AppTab.ALBUM -> AlbumsScreen(
+                        albums = state.albums,
+                        albumOpen = state.albumOpen,
+                        albumItems = state.albumDetail,
+                        columns = state.settings.columns,
+                        noFolders = state.noFolders,
+                        favouriteKeys = state.settings.favIds,
+                        selectedKeys = state.selectedKeys,
+                        thumbnailPadding = state.settings.thumbnailPadding,
+                        onOpenAlbum = viewModel::openAlbum,
+                        onCloseAlbum = viewModel::closeAlbum,
+                        onShuffle = viewModel::shuffleAlbum,
+                        pageStart = state.pageCursors[AppTab.ALBUM] ?: 0,
+                        onScrolled = { top, last, settled ->
+                            viewModel.onGridScrolled(AppTab.ALBUM, top, last, settled)
+                        },
+                        onItemClick = { handleItemClick(it, state.albumDetail, AppTab.ALBUM) },
+                        onItemDoubleTap = { viewModel.toggleFavourite(it.stableKey) },
+                        onItemLongPress = { viewModel.enterSelectMode(it.stableKey) },
+                        onSetColumns = viewModel::setColumns,
+                        onGoSettings = { viewModel.selectTab(AppTab.SETTINGS) },
+                    )
+                    AppTab.SETTINGS -> SettingsScreen(
+                        settings = state.settings,
+                        discoveredFolders = state.discoveredFolders,
+                        collapsedGroups = state.collapsedGroups,
+                        appVersion = appVersion,
+                        countsRefreshing = state.countsRefreshing,
+                        onRefreshFileTypeCounts = viewModel::refreshFileTypeCounts,
+                        onToggleDark = viewModel::toggleTheme,
+                        onToggleAmoled = viewModel::toggleAmoled,
+                        onSetAccent = viewModel::setAccent,
+                        appIcon = appIcon,
+                        onSetAppIcon = { chosen ->
+                            AppIconSwitcher.set(context, chosen)
+                            appIcon = chosen
+                        },
+                        onMoveTab = viewModel::moveTab,
+                        onToggleTabVisibility = viewModel::toggleTabVisibility,
+                        onToggleFolder = viewModel::toggleFolder,
+                        onToggleGroup = viewModel::toggleGroupCollapsed,
+                        onToggleFileType = viewModel::toggleFileType,
+                        onToggleBehaviour = viewModel::toggleBehaviour,
+                        onToggleCopyFavs = viewModel::toggleCopyFavs,
+                        onToggleShowAllFavourites = viewModel::toggleShowAllFavourites,
+                        onChooseFavFolder = { favFolderLauncher.launch(null) },
+                        onOpenHiddenFolders = viewModel::openHiddenFoldersDialog,
+                        onExportSettings = {
+                            viewModel.exportSettings { json ->
+                                pendingSettingsJson = json
+                                val stamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US)
+                                    .format(java.util.Date())
+                                exportSettingsLauncher.launch("windfall_settings_$stamp.json")
                             }
-                        }
-                    },
-                )
-                AppTab.SLIDESHOW -> Unit
+                        },
+                        onDownloadFavs = {
+                            viewModel.downloadFavouritesZip { uri -> uri?.let(shareZip) }
+                        },
+                        onImportSettings = {
+                            importLauncher.launch(
+                                arrayOf(
+                                    "application/json",
+                                    "text/*",
+                                    "application/zip",
+                                    "application/x-zip-compressed",
+                                    "application/octet-stream",
+                                ),
+                            )
+                        },
+                        onAddSafFolder = { safFolderLauncher.launch(null) },
+                        onResetSettings = viewModel::requestResetSettings,
+                        onShareLogs = {
+                            viewModel.captureLogs { file ->
+                                context.startActivity(
+                                    Intent.createChooser(LogCapture.shareIntent(context, file), "Share log"),
+                                )
+                            }
+                        },
+                        onOpenGithub = {
+                            runCatching {
+                                context.startActivity(
+                                    Intent(Intent.ACTION_VIEW, Uri.parse(githubUrl)),
+                                )
+                            }
+                        },
+                        onOpenRate = {
+                            runCatching {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(playStoreUrl)))
+                            }.onFailure {
+                                runCatching {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(playStoreWebUrl)))
+                                }
+                            }
+                        },
+                    )
+                    AppTab.SLIDESHOW -> Unit
+                    }
+                }
+
+                // Slim and non-blocking: rescans happen on ordinary actions like ticking a folder,
+                // and a centred spinner made those feel like the app had stalled.
+                if (state.loading) {
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .fillMaxWidth(),
+                    )
                 }
             }
 
-            // Slim and non-blocking: rescans happen on ordinary actions like ticking a folder,
-            // and a centred spinner made those feel like the app had stalled.
-            if (state.loading) {
-                LinearProgressIndicator(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .fillMaxWidth(),
+            AnimatedVisibility(
+                visible = state.viewerOpen,
+                enter = fadeIn(spring(stiffness = Spring.StiffnessMediumLow)) +
+                    scaleIn(
+                        initialScale = 0.94f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMediumLow,
+                        ),
+                    ),
+                exit = fadeOut(spring(stiffness = Spring.StiffnessMedium)) +
+                    scaleOut(
+                        targetScale = 0.94f,
+                        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                    ),
+            ) {
+                FullscreenViewer(
+                    item = state.viewerItem,
+                    index = state.viewerIndex,
+                    count = state.viewerCount,
+                    itemAt = viewModel::viewerItemAt,
+                    isPlaying = state.viewerPlaying,
+                    chromeVisible = state.viewerChrome,
+                    menuOpen = state.viewerMenuOpen,
+                    speedMenuOpen = state.speedMenuOpen,
+                    speedIndex = state.settings.speedIdx,
+                    customMs = state.settings.customMs,
+                    isFavourite = state.viewerItem?.let { viewModel.isFavouriteItem(it) } == true,
+                    disableSwipeDelete = state.settings.disableSwipeDelete || state.settings.deletesDisabled,
+                    deleteEnabled = !state.settings.deletesDisabled,
+                    slideshowMode = state.viewerSlideshowMode,
+                    muted = state.viewerMuted,
+                    loopVideos = !state.settings.dontLoop,
+                    hapticsEnabled = state.settings.hapticsEnabled,
+                    onClose = viewModel::closeViewer,
+                    onToggleChrome = viewModel::toggleViewerChrome,
+                    onJumpTo = viewModel::viewerJumpTo,
+                    onSwipeUpDelete = viewModel::viewerSwipeUpDelete,
+                    onTogglePlay = viewModel::togglePlayPause,
+                    onToggleMenu = viewModel::toggleViewerMenu,
+                    onToggleSpeedMenu = viewModel::toggleSpeedMenu,
+                    onSpeedSelected = viewModel::setSpeedIndex,
+                    onToggleFavourite = {
+                        GalleryHaptics.confirm(view, state.settings.hapticsEnabled)
+                        state.viewerItem?.stableKey?.let(viewModel::toggleFavourite)
+                    },
+                    onShare = {
+                        viewModel.shareCurrentItem()?.let { intent ->
+                            context.startActivity(Intent.createChooser(intent, "Share"))
+                        }
+                    },
+                    onDelete = viewModel::requestDeleteCurrent,
+                    onDetails = viewModel::openDetails,
+                    onToggleMute = viewModel::toggleViewerMute,
+                    onVideoEnded = viewModel::onViewerVideoEnded,
+                    onUserInteracted = viewModel::noteViewerInteraction,
+                    chromeAutoHideNonce = state.viewerChromeNonce,
+                    prefetch = state.viewerPrefetch,
+                    farPrefetch = state.viewerFarPrefetch,
+                    gridThumbBucketPx = gridThumbBucketPx,
+                    // Keep the scrubber and play controls clear of the overlaid tab bar.
+                    controlsBottomPadding = viewerControlsPadding,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+
+            if (state.confirmResetSettings) {
+                ResetSettingsConfirmDialog(
+                    onConfirm = viewModel::confirmResetSettings,
+                    onDismiss = viewModel::cancelResetSettings,
+                )
+            }
+
+            if (state.detailsOpen) {
+                DetailsDialog(item = state.viewerItem, onDismiss = viewModel::closeDetails)
+            }
+
+            if (state.customSpeedOpen) {
+                CustomSpeedDialog(
+                    initialSeconds = state.customSpeedSeconds,
+                    onConfirm = viewModel::confirmCustomSpeed,
+                    onDismiss = viewModel::dismissCustomSpeed,
+                )
+            }
+
+            if (state.hiddenFoldersDialog) {
+                HiddenFoldersDialog(
+                    folders = state.settings.hiddenFolders,
+                    onToggle = viewModel::toggleHiddenFolder,
+                    onDismiss = viewModel::closeHiddenFoldersDialog,
                 )
             }
         }
 
-        AnimatedVisibility(
-            visible = state.viewerOpen,
-            enter = fadeIn(spring(stiffness = Spring.StiffnessMediumLow)) +
-                scaleIn(
-                    initialScale = 0.94f,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMediumLow,
-                    ),
-                ),
-            exit = fadeOut(spring(stiffness = Spring.StiffnessMedium)) +
-                scaleOut(
-                    targetScale = 0.94f,
-                    animationSpec = spring(stiffness = Spring.StiffnessMedium),
-                ),
-        ) {
-            FullscreenViewer(
-                item = state.viewerItem,
-                index = state.viewerIndex,
-                count = state.viewerCount,
-                itemAt = viewModel::viewerItemAt,
-                isPlaying = state.viewerPlaying,
-                chromeVisible = state.viewerChrome,
-                menuOpen = state.viewerMenuOpen,
-                speedMenuOpen = state.speedMenuOpen,
-                speedIndex = state.settings.speedIdx,
-                customMs = state.settings.customMs,
-                isFavourite = state.viewerItem?.let { viewModel.isFavouriteItem(it) } == true,
-                disableSwipeDelete = state.settings.disableSwipeDelete || state.settings.deletesDisabled,
-                deleteEnabled = !state.settings.deletesDisabled,
-                slideshowMode = state.viewerSlideshowMode,
-                muted = state.viewerMuted,
-                loopVideos = !state.settings.dontLoop,
-                hapticsEnabled = state.settings.hapticsEnabled,
-                onClose = viewModel::closeViewer,
-                onToggleChrome = viewModel::toggleViewerChrome,
-                onJumpTo = viewModel::viewerJumpTo,
-                onSwipeUpDelete = viewModel::viewerSwipeUpDelete,
-                onTogglePlay = viewModel::togglePlayPause,
-                onToggleMenu = viewModel::toggleViewerMenu,
-                onToggleSpeedMenu = viewModel::toggleSpeedMenu,
-                onSpeedSelected = viewModel::setSpeedIndex,
-                onToggleFavourite = {
-                    GalleryHaptics.confirm(view, state.settings.hapticsEnabled)
-                    state.viewerItem?.stableKey?.let(viewModel::toggleFavourite)
+        // Above the whole shell, tab bar included: the wall is videos and nothing else, and the
+        // picker needs the full screen for its thumbnails.
+        if (wall.wallOpen) {
+            MultiVideoWall(viewModel = multiVideo)
+        }
+        videoPicker?.let { target ->
+            VideoPicker(
+                target = target,
+                libraryVideos = state.videos,
+                onChooseLibrary = { items ->
+                    multiVideo.choose(items.map { WallVideo(uri = it.uri.toString(), name = it.displayName) })
                 },
-                onShare = {
-                    viewModel.shareCurrentItem()?.let { intent ->
-                        context.startActivity(Intent.createChooser(intent, "Share"))
-                    }
-                },
-                onDelete = viewModel::requestDeleteCurrent,
-                onDetails = viewModel::openDetails,
-                onToggleMute = viewModel::toggleViewerMute,
-                onVideoEnded = viewModel::onViewerVideoEnded,
-                onUserInteracted = viewModel::noteViewerInteraction,
-                chromeAutoHideNonce = state.viewerChromeNonce,
-                prefetch = state.viewerPrefetch,
-                farPrefetch = state.viewerFarPrefetch,
-                gridThumbBucketPx = gridThumbBucketPx,
-                // Keep the scrubber and play controls clear of the overlaid tab bar.
-                controlsBottomPadding = viewerControlsPadding,
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-
-        if (state.confirmResetSettings) {
-            ResetSettingsConfirmDialog(
-                onConfirm = viewModel::confirmResetSettings,
-                onDismiss = viewModel::cancelResetSettings,
-            )
-        }
-
-        if (state.detailsOpen) {
-            DetailsDialog(item = state.viewerItem, onDismiss = viewModel::closeDetails)
-        }
-
-        if (state.customSpeedOpen) {
-            CustomSpeedDialog(
-                initialSeconds = state.customSpeedSeconds,
-                onConfirm = viewModel::confirmCustomSpeed,
-                onDismiss = viewModel::dismissCustomSpeed,
-            )
-        }
-
-        if (state.hiddenFoldersDialog) {
-            HiddenFoldersDialog(
-                folders = state.settings.hiddenFolders,
-                onToggle = viewModel::toggleHiddenFolder,
-                onDismiss = viewModel::closeHiddenFoldersDialog,
-            )
-        }
-
-        state.multiVideo.pickerIndex?.let { pickerIndex ->
-            VideoPickerDialog(
-                videos = state.videos,
-                onSelect = { viewModel.assignMultiVideo(pickerIndex, it) },
-                onPickGallery = {
-                    pendingPickerIndex[0] = pickerIndex
-                    multiPickGallery.launch(
-                        androidx.activity.result.PickVisualMediaRequest(
-                            ActivityResultContracts.PickVisualMedia.VideoOnly,
-                        ),
-                    )
-                },
-                onPickFiles = {
-                    pendingPickerIndex[0] = pickerIndex
-                    multiPickFiles.launch(arrayOf("video/*", "audio/*", "*/*"))
-                },
-                onDismiss = viewModel::closeMultiVideoPicker,
+                onChooseUris = multiVideo::chooseUris,
+                onDismiss = multiVideo::closePicker,
             )
         }
     }

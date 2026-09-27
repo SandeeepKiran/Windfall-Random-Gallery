@@ -6,6 +6,7 @@ import android.util.LruCache
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.SeekParameters
 
@@ -31,18 +32,24 @@ object PlayerWarmPool {
     private val warm = LinkedHashMap<String, ExoPlayer>()
 
     /**
-     * Every player in the app's viewer comes from here so they all share the same tuning:
-     * fast-start buffers + frame-EXACT seeking (the default snaps to keyframes, which is why
-     * seek bars in stock players feel imprecise).
+     * Every player in the app comes from here so they all share the same tuning: fast-start
+     * buffers + frame-EXACT seeking (the default snaps to keyframes, which is why seek bars in
+     * stock players feel imprecise).
+     *
+     * [decoderFallback]: when the phone's video decoder can't start, try the next one (often the
+     * slower software decoder) instead of failing. Multi-Video needs this: with several videos
+     * playing at once, the hardware decoders can all be in use.
      */
-    fun newPlayer(context: Context): ExoPlayer {
+    fun newPlayer(context: Context, decoderFallback: Boolean = false): ExoPlayer {
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(MIN_BUFFER_MS, MAX_BUFFER_MS, PLAYBACK_BUFFER_MS, REBUFFER_MS)
             .setPrioritizeTimeOverSizeThresholds(true)
             .build()
         // Application context: warm players live in this process-wide pool and must never
         // hold on to an Activity.
-        return ExoPlayer.Builder(context.applicationContext)
+        val appContext = context.applicationContext
+        val renderers = DefaultRenderersFactory(appContext).setEnableDecoderFallback(decoderFallback)
+        return ExoPlayer.Builder(appContext, renderers)
             .setLoadControl(loadControl)
             .build()
             .apply { setSeekParameters(SeekParameters.EXACT) }
