@@ -105,7 +105,7 @@ fun SettingsScreen(
             .padding(horizontal = 20.dp, vertical = 20.dp),
     ) {
         Text(
-            "Windfall",
+            "Windfall Gallery",
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.primary,
             textAlign = TextAlign.Center,
@@ -400,7 +400,7 @@ fun SettingsScreen(
         }
 
         Text(
-            "Help us to grow and to bring new and improved features to Windfall!",
+            "Help us to grow and to bring new and improved features to Windfall Gallery!",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

@@ -42,7 +42,7 @@ jobs:
           WINDFALL_KEY_PASSWORD: ${{ secrets.WINDFALL_KEYSTORE_PASSWORD }}
         run: |
           ./gradlew assembleRelease --no-daemon
-          cp app/build/outputs/apk/release/app-release.apk "Windfall-${GITHUB_REF_NAME}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "Windfall-Gallery-${GITHUB_REF_NAME}.apk"
 
       # Gone before any third-party step runs, even if the build failed.
       - name: Remove signing keystore
@@ -55,12 +55,12 @@ jobs:
         run: |
           code=$(sed -n 's/.*versionCode = \([0-9][0-9]*\).*/\1/p' app/build.gradle.kts | head -n 1)
           notes="fastlane/metadata/android/en-US/changelogs/${code}.txt"
-          if [ -f "$notes" ]; then cp "$notes" release-notes.md; else echo "Windfall ${GITHUB_REF_NAME}" > release-notes.md; fi
+          if [ -f "$notes" ]; then cp "$notes" release-notes.md; else echo "Windfall Gallery ${GITHUB_REF_NAME}" > release-notes.md; fi
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          name: Windfall ${{ github.ref_name }}
+          name: Windfall Gallery ${{ github.ref_name }}
           body_path: release-notes.md
           generate_release_notes: true
-          files: Windfall-${{ github.ref_name }}.apk
+          files: Windfall-Gallery-${{ github.ref_name }}.apk

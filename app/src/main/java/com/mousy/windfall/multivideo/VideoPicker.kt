@@ -185,7 +185,7 @@ fun VideoPicker(
             }
 
             Text(
-                "In your Windfall folders · ${videoCountLabel(libraryVideos.size)}",
+                "In your Windfall Gallery folders · ${videoCountLabel(libraryVideos.size)}",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),

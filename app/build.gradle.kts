@@ -14,8 +14,8 @@ android {
         minSdk = 30
         targetSdk = 36
         // Raise both with every build that leaves this laptop (phone installs, GitHub releases).
-        versionCode = 3
-        versionName = "1.2.0"
+        versionCode = 4
+        versionName = "1.3.0"
 
         vectorDrawables {
             useSupportLibrary = true
@@ -50,7 +50,7 @@ android {
             )
         }
         debug {
-            // A debug build installs NEXT TO the real app ("Windfall Debug"), never over it: its
+            // A debug build installs NEXT TO the real app ("Windfall Gallery Debug"), never over it: its
             // own data, its own permissions, and no signing clash with the release key. So a
             // test build can run on the phone with test photos only.
             applicationIdSuffix = ".debug"

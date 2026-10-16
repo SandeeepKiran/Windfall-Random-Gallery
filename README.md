@@ -1,4 +1,4 @@
-# Windfall — Random Gallery
+# Windfall Gallery
 
 A native Android gallery for **random discovery** of your own photos and videos. Pick the folders you care about, shuffle through media, favourite what you love, run slideshows, and optionally play several videos at once.
 
@@ -40,7 +40,7 @@ Built with **Kotlin**, **Jetpack Compose**, and **Material 3**. Runs on **Androi
 
 ## Screenshots
 
-[![Windfall launch video: your photos, shuffled](docs/media/windfall-launch.gif)](docs/media/windfall-launch.mp4)
+[![Windfall Gallery launch video: your photos, shuffled](docs/media/windfall-launch.gif)](docs/media/windfall-launch.mp4)
 
 *The 23-second launch video. [Watch it in full quality, with sound (MP4)](docs/media/windfall-launch.mp4).*
 
@@ -114,10 +114,10 @@ bottom-right 4).
   playing video uses one of the phone's video decoders and phones run short past about six.
 - **Screen:** Landscape (the default), Portrait, or Auto (turns with the phone even when the
   phone's rotation lock is on).
-- **Choosing videos** by their pictures, not their file names: Windfall's own list (the videos in
+- **Choosing videos** by their pictures, not their file names: Windfall Gallery's own list (the videos in
   the chosen folders, newest first, with their lengths), **Photo picker** (Android's own, every
   video on the phone, no permission needed), or **Other apps…** (Android asks which app: Gallery,
-  Google Photos, Files…). In Windfall's list and the photo picker, several videos land in the
+  Google Photos, Files…). In Windfall Gallery's list and the photo picker, several videos land in the
   order they were tapped.
 - The setup screen shows the wall in miniature. Tap a tile to change, mute, move or remove its
   video; hold a tile, then tap another, to swap the two.
@@ -132,7 +132,7 @@ bottom-right 4).
   music from another app keeps playing under a wall of muted videos.
 - Videos loop. Leaving the app pauses the wall and frees every decoder; coming back carries on
   where each video was.
-- Windfall remembers how many videos, the screen direction and Fit/Fill, even after it closes.
+- Windfall Gallery remembers how many videos, the screen direction and Fit/Fill, even after it closes.
   The chosen videos themselves are not kept: videos from the photo picker or another app can only
   be read while the app runs.
 
@@ -218,10 +218,10 @@ Add that folder to your PATH, or call `adb.exe` with the full path.
 
 ### After install
 
-Open **Windfall Debug** → allow media access when prompted → go to **More** → **Add folder (SAF)** and pick at least one folder.
+Open **Windfall Gallery Debug** → allow media access when prompted → go to **More** → **Add folder (SAF)** and pick at least one folder.
 
-> Debug APKs install as a **separate app**, "Windfall Debug" (`com.mousy.windfall.debug`), next to the
-> real Windfall. They have their own settings and favourites and never replace the real app. For a
+> Debug APKs install as a **separate app**, "Windfall Gallery Debug" (`com.mousy.windfall.debug`), next to the
+> real Windfall Gallery. They have their own settings and favourites and never replace the real app. For a
 > signed release build, see [Release APK](#release-apk-signed).
 
 ### Launcher icon not updating?
@@ -489,7 +489,7 @@ You do **not** need Android 16 on your phone — **Android 11 is enough**. API 3
 - Favourites and settings stay on-device unless **you** export them: Android backup and
   device-to-device transfer are both switched off for this app.
 - Zip export **copies** favourites; it never moves or deletes originals for that feature.
-- Favourites-folder sync only ever removes copies **Windfall made itself** (it remembers their
+- Favourites-folder sync only ever removes copies **Windfall Gallery made itself** (it remembers their
   addresses). Your own files in that folder are never deleted, and nothing is removed while
   **Disable all delete options** is on.
 - **Delete** moves a file to Android's own trash. Android asks first, the snackbar's **Undo**
@@ -613,8 +613,8 @@ git push origin v1.2.0
 ```
 
 That runs [`.github/workflows/release.yml`](.github/workflows/release.yml): unit tests, a
-release build signed with the key kept in the repo's secrets, and a Release named "Windfall
-v1.2.0" with `Windfall-v1.2.0.apk`. Its notes are that version's changelog, followed by the list of
+release build signed with the key kept in the repo's secrets, and a Release named "Windfall Gallery
+v1.2.0" with `Windfall-Gallery-v1.2.0.apk`. Its notes are that version's changelog, followed by the list of
 changes GitHub generates.
 
 Suggested repo topics: `android`, `kotlin`, `jetpack-compose`, `material3`, `gallery`, `mediastore`.

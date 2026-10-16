@@ -40,7 +40,7 @@ object LogCapture {
         context.cacheDir.listFiles { f -> f.isFile && f.name.startsWith(FILE_PREFIX) }?.forEach { it.delete() }
         val out = File(dir, "$FILE_PREFIX$fileStamp.txt")
         val header = buildString {
-            appendLine("Windfall diagnostics")
+            appendLine("Windfall Gallery diagnostics")
             appendLine("Captured: $readableStamp")
             appendLine("Package: ${context.packageName}")
             appendLine("Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}")
@@ -74,7 +74,7 @@ object LogCapture {
         return Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_STREAM, uri)
-            putExtra(Intent.EXTRA_SUBJECT, "Windfall log")
+            putExtra(Intent.EXTRA_SUBJECT, "Windfall Gallery log")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
     }

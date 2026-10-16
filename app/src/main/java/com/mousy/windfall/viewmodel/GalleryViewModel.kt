@@ -757,7 +757,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         val address = file.uri.toString()
         when {
             address !in s.favCopyUris -> if (explainIfNotOurs) {
-                showSnack("Kept \"${file.displayName}\": Windfall only removes copies it made.")
+                showSnack("Kept \"${file.displayName}\": Windfall Gallery only removes copies it made.")
             }
             s.deletesDisabled -> Unit // the copy stays; it's still ours to remove later
             else -> favSync.removeCopy(file.uri)
@@ -1368,7 +1368,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         val previous = _settings.value
         when {
             json.isNullOrBlank() -> showSnack("Unable to read that file")
-            !applyImportedSettings(json) -> showSnack("That isn't a Windfall settings file")
+            !applyImportedSettings(json) -> showSnack("That isn't a Windfall Gallery settings file")
             else -> showSnack("Settings imported", "Undo") { persistSettings { previous } }
         }
     }
