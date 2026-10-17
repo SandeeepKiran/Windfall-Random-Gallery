@@ -135,6 +135,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
@@ -153,6 +154,9 @@ const val CHROME_ANIM_OUT_MS = 150
  * cause of the black flash on swipe; 1.5x still leaves detail for pinch-zoom.
  */
 private const val VIEWER_DECODE_SCALE = 1.5f
+
+/** Up/down swipe slide length — short so quick swiping keeps up with the finger. */
+private const val VERTICAL_NAV_MS = 220
 
 /**
  * Fullscreen viewer. Top/bottom chrome is an overlay (fade only) so media stays full-bleed
@@ -295,13 +299,29 @@ fun FullscreenViewer(
             }
         }
 
-        // Vertical swipe navigation: down shows the previous media, up the next — the same
-        // pager animation as a horizontal swipe, just triggered from the vertical axis.
+        // Vertical swipe navigation: down shows the previous media, up the next. The pager still
+        // does the scrolling (so neighbours stay warm), but while [verticalNav] is set each page
+        // turns its sideways travel into up/down travel: up brings the next item in from the
+        // bottom, down brings the previous one in from the top — the motion follows the finger.
         val pagerScope = rememberCoroutineScope()
+        var verticalNav by remember { mutableStateOf(false) }
+        var verticalNavJob by remember { mutableStateOf<Job?>(null) }
         val onSwipeVertical: (Int) -> Unit = { delta ->
-            val target = pagerState.currentPage + delta
-            if (target in 0 until latestCount) {
-                pagerScope.launch { pagerState.animateScrollToPage(target) }
+            // A quick second swipe while one is still sliding chains on from where that one
+            // is heading, instead of being dropped — dropping it made fast swiping feel laggy.
+            val from = if (verticalNav) pagerState.targetPage else pagerState.currentPage
+            val target = from + delta
+            if (target in 0 until latestCount && (verticalNav || !pagerState.isScrollInProgress)) {
+                verticalNavJob?.cancel()
+                verticalNav = true
+                verticalNavJob = pagerScope.launch {
+                    try {
+                        pagerState.animateScrollToPage(target, animationSpec = tween(VERTICAL_NAV_MS))
+                    } finally {
+                        // A cancelled slide must not switch the vertical look off under its successor.
+                        if (verticalNavJob == coroutineContext[Job]) verticalNav = false
+                    }
+                }
             }
         }
 
@@ -316,18 +336,57 @@ fun FullscreenViewer(
             // Only the settled page owns a player: neighbours render a static frame, so
             // nothing plays audio off-screen and a swipe only ever moves cheap bitmaps.
             val isSettled = pagerState.settledPage == page
-            when (pageItem?.mediaType) {
-                MediaType.VIDEO, MediaType.AUDIO -> when {
-                    isSettled -> MediaPlayerSurface(
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        if (verticalNav) {
+                            // 0 = on screen, +1 = one page to the left, -1 = one to the right.
+                            val pageOffset = (pagerState.currentPage - page) +
+                                pagerState.currentPageOffsetFraction
+                            translationX = pageOffset * size.width // cancel the sideways slide
+                            translationY = -pageOffset * size.height // and slide vertically instead
+                        }
+                    },
+            ) {
+                when (pageItem?.mediaType) {
+                    MediaType.VIDEO, MediaType.AUDIO -> when {
+                        isSettled -> MediaPlayerSurface(
+                            item = pageItem,
+                            muted = muted,
+                            loopVideos = loopOverride ?: loopVideos,
+                            onToggleLoop = { loopOverride = !(loopOverride ?: loopVideos) },
+                            playbackSpeed = playbackSpeed,
+                            onSpeedChange = { playbackSpeed = it },
+                            hapticsEnabled = hapticsEnabled,
+                            slideshowMode = slideshowMode,
+                            controlsVisible = chromeVisible,
+                            onToggleChrome = {
+                                onUserInteracted()
+                                onToggleChrome()
+                            },
+                            onSwipeUpDelete = onSwipeUpDelete,
+                            disableSwipeDelete = disableSwipeDelete,
+                            onSwipeVertical = onSwipeVertical,
+                            onToggleMute = onToggleMute,
+                            onTogglePlayLocal = { onUserInteracted() },
+                            onVideoEnded = onVideoEnded,
+                            onSeekInteracted = onUserInteracted,
+                            controlsBottomPadding = controlsBottomPadding,
+                        )
+                        pageItem.mediaType == MediaType.AUDIO ->
+                            AudioArtwork(item = pageItem, modifier = Modifier.fillMaxSize())
+                        else -> VideoFramePage(
+                            item = pageItem,
+                            decodeSize = decodeSize,
+                            gridThumbBucketPx = gridThumbBucketPx,
+                        )
+                    }
+                    null -> Box(modifier = Modifier.fillMaxSize())
+                    else -> ZoomableImageSurface(
                         item = pageItem,
-                        muted = muted,
-                        loopVideos = loopOverride ?: loopVideos,
-                        onToggleLoop = { loopOverride = !(loopOverride ?: loopVideos) },
-                        playbackSpeed = playbackSpeed,
-                        onSpeedChange = { playbackSpeed = it },
-                        hapticsEnabled = hapticsEnabled,
-                        slideshowMode = slideshowMode,
-                        controlsVisible = chromeVisible,
+                        decodeSize = decodeSize,
+                        gridThumbBucketPx = gridThumbBucketPx,
                         onToggleChrome = {
                             onUserInteracted()
                             onToggleChrome()
@@ -335,33 +394,8 @@ fun FullscreenViewer(
                         onSwipeUpDelete = onSwipeUpDelete,
                         disableSwipeDelete = disableSwipeDelete,
                         onSwipeVertical = onSwipeVertical,
-                        onToggleMute = onToggleMute,
-                        onTogglePlayLocal = { onUserInteracted() },
-                        onVideoEnded = onVideoEnded,
-                        onSeekInteracted = onUserInteracted,
-                        controlsBottomPadding = controlsBottomPadding,
-                    )
-                    pageItem.mediaType == MediaType.AUDIO ->
-                        AudioArtwork(item = pageItem, modifier = Modifier.fillMaxSize())
-                    else -> VideoFramePage(
-                        item = pageItem,
-                        decodeSize = decodeSize,
-                        gridThumbBucketPx = gridThumbBucketPx,
                     )
                 }
-                null -> Box(modifier = Modifier.fillMaxSize())
-                else -> ZoomableImageSurface(
-                    item = pageItem,
-                    decodeSize = decodeSize,
-                    gridThumbBucketPx = gridThumbBucketPx,
-                    onToggleChrome = {
-                        onUserInteracted()
-                        onToggleChrome()
-                    },
-                    onSwipeUpDelete = onSwipeUpDelete,
-                    disableSwipeDelete = disableSwipeDelete,
-                    onSwipeVertical = onSwipeVertical,
-                )
             }
         }
 

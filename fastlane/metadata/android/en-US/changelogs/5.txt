@@ -1,0 +1,6 @@
+1.3.1
+• Swiping up or down in the viewer now slides the next item in from the bottom, or the previous one from the top.
+• Quick up/down swipes keep up with your finger.
+• No more jitter in the grid when you close the viewer.
+• Tap the Recent tab again to shuffle it, like the Gallery tab.
+• Export is now named "Export settings / favourites", and exported files are named windfall_gallery_…

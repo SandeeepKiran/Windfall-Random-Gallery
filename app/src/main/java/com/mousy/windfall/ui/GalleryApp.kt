@@ -25,9 +25,12 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
@@ -87,6 +90,7 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
     else -> null
 }
 
+@OptIn(ExperimentalLayoutApi::class) // the *IgnoringVisibility insets
 @Composable
 fun GalleryApp(
     viewModel: GalleryViewModel = viewModel(),
@@ -315,12 +319,15 @@ fun GalleryApp(
             // Status-bar inset lives here rather than around the whole scaffold so the fullscreen
             // viewer (a sibling below) stays edge-to-edge without shifting the screen behind it.
             // The tab bar overlays the bottom, so screens reserve room for it here.
+            // This room stays FIXED while the viewer or video wall covers the screen: following
+            // the bars as they hide and come back re-sized the grid behind the viewer, and it
+            // visibly jittered back into shape on closing the viewer.
             Box(
                 Modifier
                     .fillMaxSize()
-                    .statusBarsPadding()
-                    .navigationBarsPadding()
-                    .padding(bottom = if (hideBottomBar) 0.dp else GalleryTabBar.Height),
+                    .windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility)
+                    .windowInsetsPadding(WindowInsets.navigationBarsIgnoringVisibility)
+                    .padding(bottom = GalleryTabBar.Height),
             ) {
                 AnimatedContent(
                     targetState = state.currentTab,
@@ -485,7 +492,7 @@ fun GalleryApp(
                                 pendingSettingsJson = json
                                 val stamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US)
                                     .format(java.util.Date())
-                                exportSettingsLauncher.launch("windfall_settings_$stamp.json")
+                                exportSettingsLauncher.launch("windfall_gallery_settings_$stamp.json")
                             }
                         },
                         onDownloadFavs = {

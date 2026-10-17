@@ -385,7 +385,7 @@ fun SettingsScreen(
             HorizontalDivider()
             SimpleActionRow(Icons.Default.FolderSpecial, "Hidden Folders", onOpenHiddenFolders)
             HorizontalDivider()
-            SimpleActionRow(Icons.Default.IosShare, "Export settings", onExportSettings)
+            SimpleActionRow(Icons.Default.IosShare, "Export settings / favourites", onExportSettings)
             HorizontalDivider()
             SimpleActionRow(Icons.Default.Archive, "Download favourites (.zip)", onDownloadFavs)
             HorizontalDivider()

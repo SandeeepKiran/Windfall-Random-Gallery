@@ -45,7 +45,7 @@ class FavouritesExporter(private val context: Context) {
             val outputDir = File(context.cacheDir, EXPORT_DIR).apply { mkdirs() }
             outputDir.listFiles()?.forEach { it.delete() }
             val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-            val zipFile = File(outputDir, "windfall_favourites_$stamp.zip")
+            val zipFile = File(outputDir, "windfall_gallery_favourites_$stamp.zip")
             try {
                 ZipOutputStream(BufferedOutputStream(FileOutputStream(zipFile))).use { zip ->
                     val used = HashSet<String>()

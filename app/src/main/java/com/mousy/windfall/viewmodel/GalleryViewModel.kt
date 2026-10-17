@@ -542,6 +542,16 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 }
                 if (reDeal) shuffleGrid()
             }
+            AppTab.RECENT -> {
+                // Same rule as Gallery: re-tapping Recent while on it re-deals Recent's own order.
+                val reDeal = _shellUi.value.tab == AppTab.RECENT && !_viewerUi.value.open
+                closeViewerState()
+                _albumOpen.value = null
+                _shellUi.update {
+                    it.copy(tab = AppTab.RECENT, selectMode = false, selectedKeys = emptySet())
+                }
+                if (reDeal) shuffleRecent()
+            }
             else -> {
                 closeViewerState()
                 if (tab != AppTab.ALBUM) _albumOpen.value = null

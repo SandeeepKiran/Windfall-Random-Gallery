@@ -162,3 +162,25 @@ or another app, not by random download file names. Controls that hide after abou
 - [ ] Promo video on the Play Store and F-Droid needs a YouTube link (both only take a URL):
       Sandeep uploads `docs/media/windfall-launch.mp4`, then add the URL to
       `fastlane/metadata/android/en-US/video.txt` and the Play Console.
+
+---
+
+# Version 1.3.1 — Oct 17, 2026
+
+- [x] **Viewer up/down swipe slid sideways.** It picked the right item but reused the pager's
+      left/right slide. While an up/down swipe animates, each page now turns its sideways travel
+      into vertical travel: up brings the next item in from the bottom, down the previous from the
+      top. Left/right swiping is unchanged, and the neighbours stay pre-loaded.
+- [x] **Quick up/down swiping felt slow.** A swipe that came in while the last slide was still
+      moving was dropped. It now chains on from where that slide is heading; the slide is a
+      fixed 220 ms.
+- [x] **Grid jittered after closing the viewer.** The grid behind the viewer followed the system
+      bars as the viewer hid and restored them, so it re-sized on the way out. Its padding now uses
+      the bars' size whether shown or hidden, and keeps the tab bar's room.
+- [x] **Re-tapping the Recent tab did nothing.** It now re-deals Recent's order from page one,
+      like the Gallery tab.
+- [x] **Export button renamed** to "Export settings / favourites" (the file holds the favourites
+      list too). Export file names are now `windfall_gallery_settings_…` and
+      `windfall_gallery_favourites_…`. The internal DataStore name `windfall_settings` stays, so
+      saved settings survive the update.
+- [x] Version 1.3.1 (versionCode 5). Unit tests 78/78; lint has no errors.
