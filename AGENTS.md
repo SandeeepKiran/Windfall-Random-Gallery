@@ -148,8 +148,7 @@ No Room, no networking, no DI framework, no Navigation library (tabs = `AppTab` 
   dump or copy real personal photos from any device.
 - ⚠️ Make store screenshots and promo video on the **emulator** with generated demo media. Never on the phone.
 - Do phone tests with the **debug** app (`com.mousy.windfall.debug`) pointed at the test folder only.
-- ⚠️ The test phone keeps **three** installs. Never uninstall any of them:
-  - `com.mousy.myrandomgallery` (old name, leave untouched)
+- ⚠️ The test phone keeps **two** installs. Never uninstall either of them:
   - `com.mousy.windfall` (release)
   - `com.mousy.windfall.debug` (debug)
 - To update an install, use `adb install -r`. Do not uninstall first, even for a manifest or permission change;
