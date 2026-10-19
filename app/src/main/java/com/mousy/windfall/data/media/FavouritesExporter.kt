@@ -2,6 +2,7 @@ package com.mousy.windfall.data.media
 
 import android.content.Context
 import android.net.Uri
+import android.provider.DocumentsContract
 import androidx.documentfile.provider.DocumentFile
 import com.mousy.windfall.data.model.MediaItem
 import com.mousy.windfall.data.model.SlideshowSpeeds
@@ -91,8 +92,7 @@ class FavouritesExporter(private val context: Context) {
             val tree = favTreeUri?.takeIf { it.isNotBlank() }?.let {
                 DocumentFile.fromTreeUri(context, Uri.parse(it))
             }
-            // Leave room for the phone to keep working.
-            var budget = context.filesDir.usableSpace - FREE_SPACE_RESERVE_BYTES
+            var budget = importBudget(favTreeUri)
             var entries = 0
 
             context.contentResolver.openInputStream(zipUri)?.use { input ->
@@ -124,7 +124,11 @@ class FavouritesExporter(private val context: Context) {
                                         }
                                         if (written < 0) {
                                             dest.delete()
-                                            error("Stopped at $safe: not enough free space")
+                                            val free = megabytes(budget.coerceAtLeast(0L))
+                                            error(
+                                                "Stopped at $safe: not enough free space in the " +
+                                                    "Favourites folder's storage ($free free)",
+                                            )
                                         }
                                         budget -= written
                                         filesCopied++
@@ -142,6 +146,41 @@ class FavouritesExporter(private val context: Context) {
             ImportResult(filesCopied = filesCopied, settingsJson = settingsJson, displayNames = names)
         }
     }
+
+    /**
+     * Bytes an import may write. It keeps room for the phone to keep working, and it measures
+     * the drive of the Favourites folder (it can be an SD card), not internal storage. There is
+     * no check of the whole zip first: files that are already in the folder are skipped, so the
+     * zip size is not what gets written. The copy loop stops at the first file that does not fit.
+     */
+    private fun importBudget(favTreeUri: String?): Long {
+        val freeBytes = favTreeUri?.takeIf { it.isNotBlank() }?.let { freeBytesOfTree(Uri.parse(it)) }
+            ?: context.filesDir.usableSpace
+        return freeBytes - FREE_SPACE_RESERVE_BYTES
+    }
+
+    /**
+     * DEVICE-ONLY: free bytes on the drive that holds [treeUri], from the documents provider's
+     * root list. Null when the provider does not give it (then the caller uses internal storage).
+     */
+    private fun freeBytesOfTree(treeUri: Uri): Long? = runCatching {
+        val authority = treeUri.authority ?: return@runCatching null
+        // External-storage document IDs start with the root ID: "primary:…" or "1A2B-3C4D:…".
+        val rootId = DocumentsContract.getTreeDocumentId(treeUri).substringBefore(':')
+        context.contentResolver.query(
+            DocumentsContract.buildRootsUri(authority),
+            arrayOf(DocumentsContract.Root.COLUMN_ROOT_ID, DocumentsContract.Root.COLUMN_AVAILABLE_BYTES),
+            null,
+            null,
+            null,
+        )?.use { c ->
+            var free: Long? = null
+            while (free == null && c.moveToNext()) {
+                if (c.getString(0) == rootId && !c.isNull(1)) free = c.getLong(1)
+            }
+            free
+        }
+    }.getOrNull()
 
     private fun sanitizeEntryName(name: String): String =
         name.replace(Regex("[\\\\/:*?\"<>|]"), "_")
@@ -199,9 +238,14 @@ class FavouritesExporter(private val context: Context) {
         const val EXPORT_DIR = "exports"
         const val MAX_ENTRIES = 20_000
         const val MAX_FILE_BYTES = 4L * 1024 * 1024 * 1024
-        const val MAX_SETTINGS_BYTES = 1_000_000
+        const val MAX_SETTINGS_BYTES = 8_000_000
         const val FREE_SPACE_RESERVE_BYTES = 500L * 1024 * 1024
         val MEDIA_EXTENSIONS = SlideshowSpeeds.supportedExtensions +
             SlideshowSpeeds.audioExtensions + setOf("heic", "heif", "mkv", "webm", "mov", "3gp")
     }
 }
+
+/** Whole megabytes, for messages to the user. */
+private fun megabytes(bytes: Long): String = "${bytes / BYTES_PER_MEGABYTE} MB"
+
+private const val BYTES_PER_MEGABYTE = 1024L * 1024L

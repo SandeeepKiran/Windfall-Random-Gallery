@@ -29,6 +29,39 @@ import java.util.Locale
 
 private val DialogButtonPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp)
 
+/** Says what a crash log contains before the share sheet opens. */
+@Composable
+fun ShareLogNoticeDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Share crash log?") },
+        text = {
+            Text("The log has app errors and your phone model. Most file and folder names are hidden.")
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                contentPadding = DialogButtonPadding,
+                modifier = Modifier.heightIn(min = 52.dp),
+            ) {
+                Text("Share", style = MaterialTheme.typography.titleMedium)
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                contentPadding = DialogButtonPadding,
+                modifier = Modifier.heightIn(min = 52.dp),
+            ) {
+                Text("Cancel", style = MaterialTheme.typography.titleMedium)
+            }
+        },
+    )
+}
+
 @Composable
 fun ResetSettingsConfirmDialog(
     onConfirm: () -> Unit,

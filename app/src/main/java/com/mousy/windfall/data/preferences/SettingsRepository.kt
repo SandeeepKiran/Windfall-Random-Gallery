@@ -17,6 +17,7 @@ import com.mousy.windfall.data.model.AccentColor
 import com.mousy.windfall.data.model.AppSettings
 import com.mousy.windfall.data.model.AppTab
 import com.mousy.windfall.data.model.FavWindow
+import com.mousy.windfall.data.model.FavouriteRef
 import com.mousy.windfall.data.model.FileTypeFilter
 import com.mousy.windfall.data.model.GridMode
 import com.mousy.windfall.data.model.SlideshowSpeeds
@@ -51,7 +52,12 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit { prefs -> writePrefs(prefs, settings) }
     }
 
-    fun exportJson(settings: AppSettings): String = SettingsJson.encode(settings)
+    /**
+     * [favRefs] describe the favourites by folder, name and size, for a restore on a new phone.
+     * Each one has the favourite's key, or null for a reference still waiting from an import.
+     */
+    fun exportJson(settings: AppSettings, favRefs: List<Pair<String?, FavouriteRef>>): String =
+        SettingsJson.encode(settings, favRefs)
 
     /**
      * [base] with an exported settings file applied on top, or null if [json] isn't one.
@@ -81,6 +87,7 @@ class SettingsRepository(private val context: Context) {
         prefs[Keys.COPY_FAV_PATH] = updated.copyFavPath
         prefs[Keys.COPY_FAV_TREE_URI] = updated.copyFavTreeUri
         prefs[Keys.FAV_COPY_URIS] = updated.favCopyUris
+        prefs[Keys.PENDING_FAV_REFS] = updated.pendingFavRefs
         prefs[Keys.SHOW_ALL_FAVOURITES] = updated.showAllFavourites
         prefs[Keys.HIDDEN_FOLDERS] = encodeHiddenFolders(updated.hiddenFolders)
         prefs[Keys.TAB_FEATURE_MV] = updated.tabFeatures.multivideo
@@ -175,6 +182,7 @@ class SettingsRepository(private val context: Context) {
             copyFavPath = prefs[Keys.COPY_FAV_PATH] ?: "",
             copyFavTreeUri = prefs[Keys.COPY_FAV_TREE_URI] ?: "",
             favCopyUris = prefs[Keys.FAV_COPY_URIS] ?: emptySet(),
+            pendingFavRefs = prefs[Keys.PENDING_FAV_REFS] ?: emptySet(),
             showAllFavourites = prefs[Keys.SHOW_ALL_FAVOURITES] ?: false,
             hiddenFolders = decodeHiddenFolders(prefs[Keys.HIDDEN_FOLDERS]),
             tabFeatures = features,
@@ -220,6 +228,7 @@ class SettingsRepository(private val context: Context) {
         val COPY_FAV_PATH = stringPreferencesKey("copy_fav_path")
         val COPY_FAV_TREE_URI = stringPreferencesKey("copy_fav_tree_uri")
         val FAV_COPY_URIS = stringSetPreferencesKey("fav_copy_uris")
+        val PENDING_FAV_REFS = stringSetPreferencesKey("pending_fav_refs")
         val SHOW_ALL_FAVOURITES = booleanPreferencesKey("show_all_favourites")
         val HIDDEN_FOLDERS = stringPreferencesKey("hidden_folders")
         val TAB_FEATURE_MV = booleanPreferencesKey("tab_feature_mv")
@@ -349,10 +358,10 @@ internal object SettingsJson {
     private val KNOWN_KEYS = setOf(
         "theme", "amoled", "accent", "columns", "gridMode", "selectedFolders", "speedIdx",
         "customMs", "recentWindow", "favWindow", "recentWindowEnc", "haptics",
-        "thumbnailPadding", "disableDeleteOptions", "favIds",
+        "thumbnailPadding", "disableDeleteOptions", "favIds", "favRefs",
     )
 
-    fun encode(s: AppSettings): String = JSONObject().apply {
+    fun encode(s: AppSettings, favRefs: List<Pair<String?, FavouriteRef>> = emptyList()): String = JSONObject().apply {
         put("format", FORMAT)
         put("version", 1)
         put("theme", s.themeMode.name.lowercase())
@@ -370,7 +379,51 @@ internal object SettingsJson {
         put("thumbnailPadding", s.thumbnailPadding)
         put("disableDeleteOptions", s.disableDeleteOptions)
         put("favIds", JSONArray(s.favIds.sorted()))
+        // Media IDs change on a new phone. These let the import find the same files again.
+        put(
+            "favRefs",
+            JSONArray(
+                favRefs.distinctBy { it.second }
+                    .sortedWith(compareBy({ it.second.folder }, { it.second.name }))
+                    .map { (key, ref) ->
+                        JSONObject().put("folder", ref.folder).put("name", ref.name).put("size", ref.sizeBytes)
+                            .apply { if (key != null) put("key", key) }
+                    },
+            ),
+        )
     }.toString(2)
+
+    /** The favourite keys that the file also describes in favRefs. */
+    private fun keysWithRefs(o: JSONObject): Set<String> {
+        val array = o.optJSONArray("favRefs") ?: return emptySet()
+        return (0 until array.length()).mapNotNullTo(HashSet()) { i ->
+            array.optJSONObject(i)
+                ?.takeIf { (it.opt("size") as? Number)?.toLong()?.let { size -> size > 0L } == true }
+                ?.optString("key")
+                ?.takeIf { it.isNotBlank() }
+        }
+    }
+
+    /**
+     * The favourites of a settings file, described by folder, name and size. Empty for an
+     * older file, or for a file that is not a settings file. Damaged entries are skipped.
+     */
+    fun favouriteRefs(json: String): List<FavouriteRef> {
+        val array = try {
+            JSONObject(json).optJSONArray("favRefs")
+        } catch (_: JSONException) {
+            null
+        } ?: return emptyList()
+        return (0 until minOf(array.length(), FavouriteRef.MAX_PENDING)).mapNotNull { i ->
+            val o = array.optJSONObject(i) ?: return@mapNotNull null
+            val size = (o.opt("size") as? Number)?.toLong() ?: return@mapNotNull null
+            FavouriteRef(
+                folder = FavouriteRef.normalizeFolder(o.optString("folder")),
+                name = o.optString("name"),
+                sizeBytes = size,
+            ).takeIf(FavouriteRef::isMatchable)
+        }
+    }
 
     /** [base] with the file's settings applied, or null if [json] isn't a settings file. */
     fun merge(base: AppSettings, json: String): AppSettings? {
@@ -420,8 +473,10 @@ internal object SettingsJson {
             // The two delete toggles are kept in step, as the Settings screen does.
             disableDeleteOptions = deletesOff ?: base.disableDeleteOptions,
             disableEditDelete = deletesOff ?: base.disableEditDelete,
-            // Adding is safe; an import never takes a favourite away.
-            favIds = base.favIds + (strings("favIds") ?: emptySet()),
+            // Adding is safe; an import never takes a favourite away. A key that has a reference
+            // in favRefs is not added as it is: on a new phone that media ID can belong to a
+            // different file. The reference finds the right file (also on the same phone).
+            favIds = base.favIds + ((strings("favIds") ?: emptySet()) - keysWithRefs(o)),
         ).sanitized()
     }
 }

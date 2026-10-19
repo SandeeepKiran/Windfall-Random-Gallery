@@ -58,7 +58,12 @@ object PlayerWarmPool {
     /** Prepare [uri] in the background if it isn't already warm. Cheap to call repeatedly. */
     fun prewarm(context: Context, uri: Uri) {
         val key = uri.toString()
-        if (warm.containsKey(key)) return
+        warm.remove(key)?.let { existing ->
+            // Put it back as the newest entry. Eviction removes the oldest entry, and this
+            // one is a current neighbour.
+            warm[key] = existing
+            return
+        }
         warm[key] = newPlayer(context).apply {
             setMediaItem(MediaItem.fromUri(uri))
             playWhenReady = false
@@ -72,7 +77,12 @@ object PlayerWarmPool {
 
     /** Hands over a prepared player when one exists; otherwise builds and prepares one cold. */
     fun acquire(context: Context, uri: Uri): ExoPlayer {
-        warm.remove(uri.toString())?.let { return it }
+        warm.remove(uri.toString())?.let { player ->
+            // A warm player whose prepare failed (for example, the file was not readable
+            // yet) cannot recover. Release it and prepare a new one.
+            if (player.playerError == null) return player
+            player.release()
+        }
         return newPlayer(context).apply {
             setMediaItem(MediaItem.fromUri(uri))
             prepare()

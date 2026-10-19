@@ -10,7 +10,7 @@ Rules and map for AI coding agents in this repo. Read this file first. It overri
 - Kotlin + Jetpack Compose + Material 3. Single module app `:app` plus `:baselineprofile`.
 - Package / applicationId: `com.mousy.windfall`. Debug builds: `com.mousy.windfall.debug`
   ("Windfall Gallery Debug").
-- Current version: **1.3.1 (versionCode 5)**, in `app/build.gradle.kts`.
+- Current version: **1.4.0 (versionCode 6)**, in `app/build.gradle.kts`.
 - minSdk 30 (Android 11), compile/target SDK 36, JVM target 17. Versions: `gradle/libs.versions.toml`.
 - Public repo, MIT license, single contributor.
 
@@ -36,6 +36,7 @@ Rules and map for AI coding agents in this repo. Read this file first. It overri
 | Debug build | `.\gradlew.bat assembleDebug` → `app\build\outputs\apk\debug\app-debug.apk` |
 | Clean debug build | `.\gradlew.bat clean assembleDebug` |
 | Lint | `.\gradlew.bat :app:lintDebug` |
+| Detekt (Kotlin + Compose static analysis) | `.\gradlew.bat :app:detekt` → `appuildeports\detekt\detekt.html` |
 | Release build | `.\gradlew.bat assembleRelease` → `app\build\outputs\apk\release\app-release.apk` |
 | Build + install debug (one device attached) | `.\gradlew.bat installDebug` |
 | Install an APK | `adb -s <serial> install -r <apk>` |
@@ -54,11 +55,14 @@ Rules and map for AI coding agents in this repo. Read this file first. It overri
   rules, build the release APK, install it and launch it once.
 - Debug builds attach Coil's `DebugLogger`. Check cache hits with
   `adb logcat -d | Select-String "RealImageLoader:.*Successful"`.
-- CI (`.github/workflows/android.yml`) runs `testDebugUnitTest` and `assembleDebug` on pushes and PRs to `main` / `master` only.
+- CI (`.github/workflows/android.yml`) runs `detekt`, `testDebugUnitTest` and `assembleDebug` on pushes and PRs to `main` / `master` only.
+- Detekt (1.23.8 + Compose rules) reports only findings that are not in `config/detekt/baseline.xml`. Fix a new finding;
+  do not add it to the baseline. Rebuild the baseline (`:app:detektBaseline`) only when the owner agrees.
+  Rules: `config/detekt/detekt.yml`. Old baseline findings were checked on Oct 19, 2026: none was a real bug.
 
 ### Verify a change
 
-1. Run the unit tests.
+1. Run the unit tests and `detekt`.
 2. Run `assembleDebug`. It must build with no errors. Warnings are acceptable.
 3. Install the debug build. Test the change on the emulator or the test phone (section 6 rules apply).
 4. If you change `GalleryViewModel`, `MediaRepository`, `RandomSample.kt` or `ShuffleDeck.kt`, test with a
@@ -173,6 +177,9 @@ No Room, no networking, no DI framework, no Navigation library (tabs = `AppTab` 
 - Do not change `applicationId`. It stays `com.mousy.windfall` even after the display-name rename.
 - Do not add `navigation-compose`. It was removed on purpose.
 - Multi-Video tiles stay TextureViews (SurfaceViews showed a stretched picture after a tile moved). Six videos is the cap (hardware decoders).
+- The viewer's vertical slide moves pages in the placement step (`Modifier.layout`), not with `graphicsLayer`. The viewer video
+  is a SurfaceView, and a SurfaceView does not follow a `graphicsLayer`: the video after an up/down swipe showed a black
+  picture until a tap (fixed in 1.3.2). Keep the SurfaceView (HDR output, less GPU work than a TextureView).
 - Viewer swipe direction is decided at 0.6 × touch slop, before the pager's slop. Do not move it later; the pager then steals slanted swipes.
 - Keep `DEVICE-ONLY` comments when you touch storage, video, pinch or zip/copy code.
 - Do not "fix" comments that explain deliberate design choices.

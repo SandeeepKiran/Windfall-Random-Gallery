@@ -484,8 +484,15 @@ You do **not** need Android 16 on your phone — **Android 11 is enough**. API 3
 | `READ_MEDIA_AUDIO` | 33+ path | Audio types if enabled in filters |
 | `READ_MEDIA_VISUAL_USER_SELECTED` | 34+ | Limited / selected photo access |
 
+- **No other permissions.** The video player library (Media3) adds `ACCESS_NETWORK_STATE` and
+  `WAKE_LOCK`; the manifest removes both. The screen stays on while a video plays or a slideshow
+  runs, which needs no permission.
 - **No internet permission** — the app does not phone home.
 - **No analytics / ads** in this codebase.
+- **Share crash log** shows what the log contains first. File names, folder names, document
+  addresses and email addresses are masked before the log is written.
+- **Export settings** writes your folder names and your favourites list (folder, file name and size
+  of each favourite), so a restore on a new phone finds the same files again.
 - Favourites and settings stay on-device unless **you** export them: Android backup and
   device-to-device transfer are both switched off for this app.
 - Zip export **copies** favourites; it never moves or deletes originals for that feature.

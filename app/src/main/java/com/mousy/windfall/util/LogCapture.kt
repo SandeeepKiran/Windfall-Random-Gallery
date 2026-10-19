@@ -22,13 +22,6 @@ object LogCapture {
     /** Folder under the private cache; `res/xml/file_paths.xml` shares exactly this. */
     private const val LOG_DIR = "logs"
 
-    /**
-     * Document addresses and storage paths name the user's folders and files (system and
-     * player errors print them). A log is meant for sharing, so they're masked.
-     */
-    private val contentUri = Regex("""content://\S+""")
-    private val storagePath = Regex("""/(storage|sdcard|mnt)/\S+""")
-
     /** Runs `logcat` and writes a file: call it off the main thread. */
     fun captureToCache(context: Context): Result<File> = runCatching {
         val now = Date()
@@ -47,9 +40,9 @@ object LogCapture {
             appendLine("Android: ${android.os.Build.VERSION.RELEASE} (SDK ${android.os.Build.VERSION.SDK_INT})")
             appendLine("--- logcat (tail) ---")
         }
-        val body = dumpLogcat()
-            .replace(contentUri, "content://…")
-            .replace(storagePath, "/$1/…")
+        // System and player errors print file and folder names. A log is meant for sharing,
+        // so LogMasking removes them.
+        val body = LogMasking.mask(dumpLogcat())
         out.writeText(header + body)
         prunePreviousLogs(dir, keep = out)
         out

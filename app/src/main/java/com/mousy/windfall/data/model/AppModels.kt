@@ -105,6 +105,12 @@ data class AppSettings(
      * app will ever remove from that folder; anything else in it belongs to the user.
      */
     val favCopyUris: Set<String> = emptySet(),
+    /**
+     * Favourites from an imported settings file that are not matched yet, as
+     * [FavouriteRef.encode] strings. On a new phone the files get new IDs. Each rescan matches
+     * these by folder, name and size, and moves the matches into [favIds].
+     */
+    val pendingFavRefs: Set<String> = emptySet(),
     /** Favourites tab ignores the folder selection and shows favourites from anywhere. */
     val showAllFavourites: Boolean = false,
     val hiddenFolders: Map<String, Boolean> = defaultHiddenFolders(),

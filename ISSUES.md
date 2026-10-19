@@ -184,3 +184,48 @@ or another app, not by random download file names. Controls that hide after abou
       `windfall_gallery_favourites_…`. The internal DataStore name `windfall_settings` stays, so
       saved settings survive the update.
 - [x] Version 1.3.1 (versionCode 5). Unit tests 78/78; lint has no errors.
+
+# Version 1.4.0 — Oct 19, 2026
+
+- [x] **Black video after an up/down swipe (regression from 1.3.1).** Steps: Recent tab, videos
+      only, open a video, swipe up to the next one. The page flickered, then the video played with
+      sound but a black picture until a tap. Sideways swipes were not affected. Cause: the 1.3.1
+      vertical slide moved pages with a `graphicsLayer`. The viewer video is a SurfaceView (a
+      separate window layer), and it does not follow a `graphicsLayer`. A tap caused a new layout,
+      which put the picture back. Fix: the slide now moves pages in the placement step
+      (`Modifier.layout`). The SurfaceView follows placement, so it keeps HDR output.
+      Tried and rejected: (1) mount the player only after the slide ends: 3 of 6 swipes still
+      black; (2) a TextureView: it worked, but it removes HDR output and adds GPU work.
+- [x] **Muted video gave a short burst of sound.** A pre-loaded neighbour plays at once, but mute,
+      loop and speed were set one frame later. They are now set before play starts.
+- [x] **Warm player pool:** a neighbour that is asked for again becomes the newest entry, so it is
+      not evicted first. A warm player whose prepare failed is released and prepared again,
+      instead of showing a black page.
+- [x] **Screen went off during a video.** The viewer did not keep the screen on (only Multi-Video
+      did). The screen now stays on while a viewer video plays or a slideshow runs, and sleeps as
+      usual for photos, paused videos and the grid (`View.keepScreenOn`, no permission).
+- [x] **Favourites were lost on a new phone.** They are saved by MediaStore ID, and a new phone
+      gives files new IDs. The settings export now also lists each favourite by folder, file name
+      and size (`favRefs`). On import, unmatched references wait in `AppSettings.pendingFavRefs`
+      and each rescan matches them (`FavouriteRef`). Size is part of the match, so two files with
+      the same name are not mixed up. Matching only adds hearts; it never deletes a file.
+- [x] **Privacy:** removed `ACCESS_NETWORK_STATE` and `WAKE_LOCK` (added by Media3; Media3 catches
+      the missing network permission). The crash log now also masks file names, media folder
+      paths, storage document IDs and emails (`LogMasking`), and a dialog says what the log holds
+      before the share sheet. The settings export row says that the file holds folder names and
+      favourites. Owner decisions: the last export zip and the 5 newest logs stay in the private
+      cache (useful for debugging); photo EXIF/GPS is shared unchanged.
+- [x] **Zip import free space:** measured on the Favourites folder's drive (it can be an SD card),
+      not internal storage. A zip that cannot fit stops before the first file with a clear message.
+- [x] **Empty Favourites/Recent after a filter error** stays an empty tab (owner decision), but now
+      shows "Couldn't load … Settings > Share crash log helps fix it" once per session. The error
+      and stack trace are in the log. The slideshow "video ended" callback now uses
+      `rememberUpdatedState`.
+- [x] **Detekt added** (1.23.8 + Compose rules) to the build and to CI, with a baseline of the old
+      findings. The 16 old findings that could be bugs were checked: none was a real bug.
+- [x] Verified on the emulator with generated videos: up/down (also chained) and sideways swipes;
+      screen-on during play, off when paused and on the grid; crash-log dialog and a log with no
+      file names; new-phone restore (favourite 2, export, recreate the files with new IDs, import:
+      both hearts back). Not verified: rotation (the emulator ignored rotation commands),
+      photo/GIF/audio pages, swipe-to-delete and Undo, zip import on an SD card.
+- [x] Version 1.4.0 (versionCode 6). Unit tests 90/90 (12 new); lint has no errors; detekt passes.

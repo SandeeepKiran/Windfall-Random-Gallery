@@ -12,6 +12,7 @@ import com.mousy.windfall.data.model.AccentColor
 import com.mousy.windfall.data.model.AppSettings
 import com.mousy.windfall.data.model.AppTab
 import com.mousy.windfall.data.model.FavWindow
+import com.mousy.windfall.data.model.FavouriteRef
 import com.mousy.windfall.data.model.FileTypeFilter
 import com.mousy.windfall.data.model.GridMode
 import com.mousy.windfall.data.model.MediaItem
@@ -26,6 +27,7 @@ import com.mousy.windfall.data.model.newShuffleSeed
 import com.mousy.windfall.data.model.sanitized
 import com.mousy.windfall.data.model.seededMixedSample
 import com.mousy.windfall.data.model.seededSample
+import com.mousy.windfall.data.preferences.SettingsJson
 import com.mousy.windfall.data.preferences.SettingsRepository
 import coil3.SingletonImageLoader
 import com.mousy.windfall.data.media.MediaIndexCache
@@ -151,6 +153,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     private var slideshowJob: Job? = null
     private var snackJob: Job? = null
+
+    /** The "could not load" message shows once per session, not at each rebuild of the library. */
+    private val filterFailureShown = java.util.concurrent.atomic.AtomicBoolean(false)
     private var refreshJob: Job? = null
     private var countsJob: Job? = null
     private var farmJob: Job? = null
@@ -268,6 +273,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 // Files in added (SAF) folders come back with stable keys now; carry favourites
                 // saved under the old unstable keys across before the hearts are drawn.
                 migrateSafFavouriteKeys(media)
+                resolvePendingFavourites(media)
                 _allMedia.value = media
                 _ready.value = true
                 indexCache.save(scanKey, media)
@@ -503,6 +509,33 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             MediaItem.uriOfSafKey(key)?.let { safByUri[it]?.stableKey } ?: key
         if (_settings.value.favIds.none { currentKey(it) != it }) return
         persistSettings { s -> s.copy(favIds = s.favIds.mapTo(HashSet()) { currentKey(it) }) }
+    }
+
+    /**
+     * Favourites from an imported settings file that were not found by ID (a new phone gives
+     * files new IDs) are matched here by folder, name and size. Each rescan tries again, so a
+     * folder selected later still gets its hearts back.
+     */
+    private suspend fun resolvePendingFavourites(media: List<MediaItem>) {
+        val pending = _settings.value.pendingFavRefs
+        if (pending.isEmpty() || media.isEmpty()) return
+        // A whole-library pass: off the main thread.
+        val matched = withContext(Dispatchers.Default) {
+            val keyByRef = HashMap<String, String>(media.size * 2)
+            media.forEach { item ->
+                val ref = FavouriteRef.of(item)
+                if (FavouriteRef.isMatchable(ref)) keyByRef.putIfAbsent(ref.encode(), item.stableKey)
+            }
+            pending.mapNotNull { raw -> keyByRef[raw]?.let { key -> raw to key } }
+        }
+        if (matched.isEmpty()) return
+        val matchedRefs = matched.mapTo(HashSet()) { it.first }
+        persistSettings { s ->
+            s.copy(
+                favIds = s.favIds + matched.map { it.second },
+                pendingFavRefs = s.pendingFavRefs - matchedRefs,
+            )
+        }
     }
 
     private suspend fun autoConfigureFileTypes(media: List<MediaItem>, s: AppSettings) {
@@ -1348,7 +1381,19 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     fun exportSettings(onResult: (String) -> Unit) {
         // The UI hands this to a save-as picker and snacks once it's actually written.
-        onResult(settingsRepo.exportJson(_settings.value))
+        val s = _settings.value
+        // Folder, name and size of each favourite, so a restore on a new phone can find the
+        // same files. One map for the lookups: a find per favourite was slow on big libraries.
+        // Favourites outside the selected folders (_globalFavourites) are included.
+        val byKey = HashMap<String, MediaItem>()
+        listOf(_allMedia.value, _folderFavourites.value, _globalFavourites.value).forEach { list ->
+            list.forEach { byKey.putIfAbsent(it.stableKey, it) }
+        }
+        val refs: List<Pair<String?, FavouriteRef>> =
+            s.favIds.mapNotNull { key -> byKey[key]?.let { key to FavouriteRef.of(it) } } +
+                // Favourites still waiting for a match from an older import go in too.
+                s.pendingFavRefs.mapNotNull(FavouriteRef::decode).map { null to it }
+        onResult(settingsRepo.exportJson(s, refs.filter { FavouriteRef.isMatchable(it.second) }))
     }
 
     /** DEVICE-ONLY: Import settings JSON and/or a favourites zip from the document picker. */
@@ -1419,7 +1464,15 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
      */
     private fun applyImportedSettings(json: String): Boolean {
         if (settingsRepo.mergeImport(_settings.value, json) == null) return false
-        persistSettings { current -> settingsRepo.mergeImport(current, json) ?: current }
+        val refs = SettingsJson.favouriteRefs(json).map(FavouriteRef::encode)
+        persistSettings { current ->
+            val merged = settingsRepo.mergeImport(current, json) ?: current
+            // The newest file's references come first, so the limit drops old ones.
+            val newestFirst = (refs + merged.pendingFavRefs).distinct()
+            merged.copy(pendingFavRefs = newestFirst.take(FavouriteRef.MAX_PENDING).toSet())
+        }
+        // Files already in the library match at once; the others match after the rescan.
+        viewModelScope.launch { resolvePendingFavourites(_allMedia.value) }
         return true
     }
 
@@ -1451,6 +1504,17 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             }.onFailure {
                 showSnack(it.message ?: "Export failed")
             }
+        }
+    }
+
+    /**
+     * A failed filter shows an empty tab, not a crash. The error is in the log (Log.e above),
+     * so the message points to "Share crash log". Safe to call from the library thread.
+     */
+    private fun reportFilterFailure(tab: String) {
+        if (!filterFailureShown.compareAndSet(false, true)) return
+        viewModelScope.launch {
+            showSnack("Couldn't load $tab. Settings > Share crash log helps fix it")
         }
     }
 
@@ -1655,6 +1719,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             }
         } catch (t: Throwable) {
             android.util.Log.e("GalleryVM", "Favourites filter failed window=$favWindow", t)
+            reportFilterFailure("Favourites")
             emptyList()
         }
         // Favourites have no natural order, so they follow the gallery's shuffle. Held still
@@ -1680,6 +1745,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             }
         } catch (t: Throwable) {
             android.util.Log.e("GalleryVM", "Recent filter failed window=$recentWindow", t)
+            reportFilterFailure("Recent")
             emptyList()
         }
 
@@ -1809,7 +1875,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         const val VIEWER_LOOKAHEAD = 4
 
         /** A settings export is a few KB; anything this big is not one. */
-        const val MAX_SETTINGS_FILE_BYTES = 1_000_000
+        const val MAX_SETTINGS_FILE_BYTES = 8_000_000
 
         /** How long a snackbar stays: a plain notice, and one with an action such as Undo. */
         const val SNACK_MS = 4_000L

@@ -93,6 +93,7 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -211,6 +212,16 @@ fun FullscreenViewer(
     // Session-sticky playback prefs: hold across item swipes, reset when the viewer closes.
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
     var loopOverride by remember { mutableStateOf<Boolean?>(null) }
+
+    // The screen stays on while a video plays or a slideshow runs, as in other video apps.
+    // It sleeps as usual while the user only looks at a photo or a paused video.
+    val rootView = LocalView.current
+    var playingKey by remember { mutableStateOf<String?>(null) }
+    val keepAwake = slideshowMode || playingKey != null
+    DisposableEffect(keepAwake, rootView) {
+        rootView.keepScreenOn = keepAwake
+        onDispose { rootView.keepScreenOn = false }
+    }
 
     // Players prewarmed for neighbours die with the viewer.
     val activity = LocalActivity.current
@@ -339,13 +350,23 @@ fun FullscreenViewer(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer {
-                        if (verticalNav) {
-                            // 0 = on screen, +1 = one page to the left, -1 = one to the right.
-                            val pageOffset = (pagerState.currentPage - page) +
-                                pagerState.currentPageOffsetFraction
-                            translationX = pageOffset * size.width // cancel the sideways slide
-                            translationY = -pageOffset * size.height // and slide vertically instead
+                    // Move the page in the placement step, not with a graphicsLayer. A video
+                    // SurfaceView follows placement only. After a graphicsLayer slide, it
+                    // showed a black picture until the next tap (1.3.1 bug).
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints)
+                        layout(placeable.width, placeable.height) {
+                            if (verticalNav) {
+                                // 0 = on screen, +1 = one page to the left, -1 = one to the right.
+                                val pageOffset = (pagerState.currentPage - page) +
+                                    pagerState.currentPageOffsetFraction
+                                placeable.placeRelative(
+                                    x = (pageOffset * placeable.width).roundToInt(), // cancel the sideways slide
+                                    y = (-pageOffset * placeable.height).roundToInt(), // and slide vertically instead
+                                )
+                            } else {
+                                placeable.placeRelative(0, 0)
+                            }
                         }
                     },
             ) {
@@ -371,6 +392,14 @@ fun FullscreenViewer(
                             onToggleMute = onToggleMute,
                             onTogglePlayLocal = { onUserInteracted() },
                             onVideoEnded = onVideoEnded,
+                            onPlayingChange = { isPlaying ->
+                                // Keyed by item, so the old page's "stopped" cannot switch the
+                                // screen-on off for the new page.
+                                when {
+                                    isPlaying -> playingKey = pageItem.stableKey
+                                    playingKey == pageItem.stableKey -> playingKey = null
+                                }
+                            },
                             onSeekInteracted = onUserInteracted,
                             controlsBottomPadding = controlsBottomPadding,
                         )
@@ -758,6 +787,7 @@ private fun MediaPlayerSurface(
     onVideoEnded: () -> Unit,
     onSeekInteracted: () -> Unit,
     controlsBottomPadding: Dp = 0.dp,
+    onPlayingChange: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
     val activity = LocalActivity.current
@@ -782,6 +812,11 @@ private fun MediaPlayerSurface(
     var resumePositionMs by rememberSaveable(item.stableKey) { mutableStateOf(0L) }
     var resumePlayWhenReady by rememberSaveable(item.stableKey) { mutableStateOf(true) }
 
+    // The player listener lives as long as the player. It must call the newest callback,
+    // not the one from the first composition.
+    val latestOnVideoEnded by rememberUpdatedState(onVideoEnded)
+    val latestOnPlayingChanged by rememberUpdatedState(onPlayingChange)
+
     // A looping video never reaches STATE_ENDED, so in a slideshow it would play forever and
     // the show would never move on. Looping is a view-mode behaviour only.
     val repeatVideo = loopVideos && !slideshowMode
@@ -794,12 +829,18 @@ private fun MediaPlayerSurface(
             val resume = if (resumePositionMs > 0L) resumePositionMs
                 else VideoPositionMemory.recall(item.stableKey)
             if (resume > 0L) seekTo(resume)
+            // Set these before play starts. A warm player is already prepared, so it plays
+            // at once. The LaunchedEffects below set them one frame later: muted videos gave
+            // a short burst of sound.
+            volume = if (muted) 0f else 1f
+            repeatMode = if (repeatVideo) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+            setPlaybackSpeed(playbackSpeed)
             playWhenReady = resumePlayWhenReady
         }
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_ENDED && exo.repeatMode == Player.REPEAT_MODE_OFF) {
-                    onVideoEnded()
+                    latestOnVideoEnded()
                 }
             }
         }
@@ -818,6 +859,14 @@ private fun MediaPlayerSurface(
 
     LaunchedEffect(muted, player) {
         player?.volume = if (muted) 0f else 1f
+    }
+
+    // Tells the viewer when this video plays, for the screen-on rule.
+    LaunchedEffect(playing, player) {
+        latestOnPlayingChanged(player != null && playing)
+    }
+    DisposableEffect(Unit) {
+        onDispose { latestOnPlayingChanged(false) }
     }
 
     // Loop and speed react live, without tearing the player down.

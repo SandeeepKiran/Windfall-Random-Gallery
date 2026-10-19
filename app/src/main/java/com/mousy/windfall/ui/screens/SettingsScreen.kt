@@ -385,7 +385,12 @@ fun SettingsScreen(
             HorizontalDivider()
             SimpleActionRow(Icons.Default.FolderSpecial, "Hidden Folders", onOpenHiddenFolders)
             HorizontalDivider()
-            SimpleActionRow(Icons.Default.IosShare, "Export settings / favourites", onExportSettings)
+            SimpleActionRow(
+                Icons.Default.IosShare,
+                "Export settings / favourites",
+                onExportSettings,
+                subtitle = "Includes your folder names and favourites list",
+            )
             HorizontalDivider()
             SimpleActionRow(Icons.Default.Archive, "Download favourites (.zip)", onDownloadFavs)
             HorizontalDivider()
@@ -638,6 +643,7 @@ private fun SimpleActionRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     onClick: () -> Unit,
+    subtitle: String? = null,
 ) {
     Row(
         Modifier
@@ -647,7 +653,16 @@ private fun SimpleActionRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
-        Text(title, modifier = Modifier.padding(start = 14.dp))
+        Column(modifier = Modifier.padding(start = 14.dp)) {
+            Text(title)
+            if (subtitle != null) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 

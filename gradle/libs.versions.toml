@@ -18,6 +18,8 @@ espressoCore = "3.6.1"
 junit = "1.2.1"
 junit4 = "4.13.2"
 orgJson = "20240303"
+detekt = "1.23.8"
+composeRulesDetekt = "0.4.23"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -48,6 +50,7 @@ androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-toolin
 androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 junit4 = { group = "junit", name = "junit", version.ref = "junit4" }
 json = { group = "org.json", name = "json", version.ref = "orgJson" }
+compose-rules-detekt = { group = "io.nlopez.compose.rules", name = "detekt", version.ref = "composeRulesDetekt" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -55,3 +58,4 @@ android-test = { id = "com.android.test", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 androidx-baselineprofile = { id = "androidx.baselineprofile", version.ref = "baselineProfile" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }

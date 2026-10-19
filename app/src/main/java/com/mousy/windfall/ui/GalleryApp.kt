@@ -63,6 +63,7 @@ import com.mousy.windfall.ui.components.FullscreenViewer
 import com.mousy.windfall.ui.components.GallerySnackbarHost
 import com.mousy.windfall.ui.components.HiddenFoldersDialog
 import com.mousy.windfall.ui.components.ResetSettingsConfirmDialog
+import com.mousy.windfall.ui.components.ShareLogNoticeDialog
 import com.mousy.windfall.multivideo.MultiVideoSetupScreen
 import com.mousy.windfall.multivideo.MultiVideoViewModel
 import com.mousy.windfall.multivideo.MultiVideoWall
@@ -218,6 +219,8 @@ fun GalleryApp(
     // Export settings goes through a real save-as picker: the user chooses WHERE, and the
     // snack only fires once the bytes are actually on disk.
     var pendingSettingsJson by remember { mutableStateOf<String?>(null) }
+    // "Share crash log" first says what the log contains.
+    var shareLogNoticeOpen by remember { mutableStateOf(false) }
     val exportSettingsLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
     ) { uri ->
@@ -511,13 +514,7 @@ fun GalleryApp(
                         },
                         onAddSafFolder = { safFolderLauncher.launch(null) },
                         onResetSettings = viewModel::requestResetSettings,
-                        onShareLogs = {
-                            viewModel.captureLogs { file ->
-                                context.startActivity(
-                                    Intent.createChooser(LogCapture.shareIntent(context, file), "Share log"),
-                                )
-                            }
-                        },
+                        onShareLogs = { shareLogNoticeOpen = true },
                         onOpenGithub = {
                             runCatching {
                                 context.startActivity(
@@ -613,6 +610,20 @@ fun GalleryApp(
                     // Keep the scrubber and play controls clear of the overlaid tab bar.
                     controlsBottomPadding = viewerControlsPadding,
                     modifier = Modifier.fillMaxSize(),
+                )
+            }
+
+            if (shareLogNoticeOpen) {
+                ShareLogNoticeDialog(
+                    onConfirm = {
+                        shareLogNoticeOpen = false
+                        viewModel.captureLogs { file ->
+                            context.startActivity(
+                                Intent.createChooser(LogCapture.shareIntent(context, file), "Share log"),
+                            )
+                        }
+                    },
+                    onDismiss = { shareLogNoticeOpen = false },
                 )
             }
 

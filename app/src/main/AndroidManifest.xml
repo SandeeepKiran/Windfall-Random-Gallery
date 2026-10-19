@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- API 30-32 -->
     <uses-permission
@@ -13,6 +14,19 @@
 
     <!-- API 34+ partial / user-selected visual access -->
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+
+    <!--
+        Media3 (ExoPlayer) adds these two. The app plays only local files: it needs no network
+        state, and it never asks the player to keep the CPU awake (the viewer keeps the SCREEN
+        on with View.keepScreenOn, which needs no permission). Removed so the app asks for media
+        access only. Media3 copes with a missing ACCESS_NETWORK_STATE (network type "unknown").
+    -->
+    <uses-permission
+        android:name="android.permission.ACCESS_NETWORK_STATE"
+        tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.WAKE_LOCK"
+        tools:node="remove" />
 
     <!--
         No backup, on purpose: favourites, settings, folder names and the media index stay on

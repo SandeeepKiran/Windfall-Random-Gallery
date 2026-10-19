@@ -1,0 +1,6 @@
+1.4.0
+• Fixed: after an up/down swipe, a video played with a black picture until you tapped.
+• Fixed: a short burst of sound when you swiped to a video while muted.
+• The screen stays on while a video plays or a slideshow runs.
+• Favourites come back when you restore settings on a new phone.
+• Privacy: two unused permissions removed; crash logs hide file and folder names.

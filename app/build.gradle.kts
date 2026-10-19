@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.androidx.baselineprofile)
+    alias(libs.plugins.detekt)
 }
 
 android {
@@ -14,8 +15,8 @@ android {
         minSdk = 30
         targetSdk = 36
         // Raise both with every build that leaves this laptop (phone installs, GitHub releases).
-        versionCode = 5
-        versionName = "1.3.1"
+        versionCode = 6
+        versionName = "1.4.0"
 
         vectorDrawables {
             useSupportLibrary = true
@@ -82,6 +83,16 @@ kotlin {
     }
 }
 
+// Static analysis: run `.\gradlew.bat detekt`. The project rules are in config/detekt/detekt.yml
+// on top of the detekt defaults. The baseline file keeps old findings out of the report, so the
+// report shows only new findings.
+detekt {
+    buildUponDefaultConfig = true
+    config.setFrom(rootProject.file("config/detekt/detekt.yml"))
+    baseline = rootProject.file("config/detekt/baseline.xml")
+    parallel = true
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -116,4 +127,6 @@ dependencies {
     // Plain-JVM unit tests (app/src/test). org.json is built into Android but not into the JVM.
     testImplementation(libs.junit4)
     testImplementation(libs.json)
+
+    detektPlugins(libs.compose.rules.detekt)
 }

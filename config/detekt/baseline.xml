@@ -1,0 +1,374 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ComplexCondition:MediaRepository.kt$MediaRepository$!includeUnsupported &amp;&amp; fileTypeFilters.isEmpty() &amp;&amp; ext.isNotEmpty() &amp;&amp; ext !in SlideshowSpeeds.supportedExtensions</ID>
+    <ID>ComposableParamOrder:AlbumsScreen.kt$AlbumsScreen</ID>
+    <ID>ComposableParamOrder:FavouritesScreen.kt$FavouritesScreen</ID>
+    <ID>ComposableParamOrder:FullscreenViewer.kt$FullscreenViewer</ID>
+    <ID>ComposableParamOrder:FullscreenViewer.kt$MediaPlayerSurface</ID>
+    <ID>ComposableParamOrder:GalleryScreen.kt$GalleryScreen</ID>
+    <ID>ComposableParamOrder:MainScaffold.kt$MainScaffold</ID>
+    <ID>ComposableParamOrder:MediaGrid.kt$MediaGrid</ID>
+    <ID>ComposableParamOrder:MediaGrid.kt$MediaGridCell</ID>
+    <ID>ComposableParamOrder:MediaListFilterBar.kt$MediaListFilterBar</ID>
+    <ID>ComposableParamOrder:RecentScreen.kt$RecentScreen</ID>
+    <ID>ComposableParamOrder:SettingsScreen.kt$SettingsScreen</ID>
+    <ID>CyclomaticComplexMethod:FavouritesExporter.kt$FavouritesExporter$private fun guessMime(ext: String): String</ID>
+    <ID>CyclomaticComplexMethod:FavouritesExporter.kt$FavouritesExporter$suspend fun importFavouritesZip( zipUri: Uri, favTreeUri: String?, ): Result&lt;ImportResult&gt;</ID>
+    <ID>CyclomaticComplexMethod:FullscreenViewer.kt$@Composable fun FullscreenViewer( item: MediaItem?, index: Int, count: Int, /** Random access into the viewer's list — the pager composes neighbours ahead of a swipe. */ itemAt: (Int) -&gt; MediaItem?, isPlaying: Boolean, chromeVisible: Boolean, menuOpen: Boolean, speedMenuOpen: Boolean, speedIndex: Int, customMs: Long, isFavourite: Boolean, disableSwipeDelete: Boolean, deleteEnabled: Boolean = true, slideshowMode: Boolean = true, muted: Boolean = false, loopVideos: Boolean = true, hapticsEnabled: Boolean = true, onClose: () -&gt; Unit, onToggleChrome: () -&gt; Unit, /** A user swipe settled on an absolute index. */ onJumpTo: (Int) -&gt; Unit, onSwipeUpDelete: () -&gt; Unit, onTogglePlay: () -&gt; Unit, onToggleMenu: () -&gt; Unit, onToggleSpeedMenu: () -&gt; Unit, onSpeedSelected: (Int) -&gt; Unit, onToggleFavourite: () -&gt; Unit, onShare: () -&gt; Unit, onDelete: () -&gt; Unit, onDetails: () -&gt; Unit, onToggleMute: () -&gt; Unit = {}, onVideoEnded: () -&gt; Unit = {}, onUserInteracted: () -&gt; Unit = {}, chromeAutoHideNonce: Int = 0, prefetch: List&lt;MediaItem&gt; = emptyList(), /** Items 2-3 swipes away — warmed at thumb resolution after a 1 s dwell. */ farPrefetch: List&lt;MediaItem&gt; = emptyList(), gridThumbBucketPx: Int = 256, controlsBottomPadding: Dp = 0.dp, modifier: Modifier = Modifier, )</ID>
+    <ID>CyclomaticComplexMethod:FullscreenViewer.kt$@Composable private fun ZoomableImageSurface( item: MediaItem, decodeSize: Size, gridThumbBucketPx: Int, onToggleChrome: () -&gt; Unit, onSwipeUpDelete: () -&gt; Unit, disableSwipeDelete: Boolean, onSwipeVertical: (Int) -&gt; Unit = {}, )</ID>
+    <ID>CyclomaticComplexMethod:FullscreenViewer.kt$@androidx.annotation.OptIn(markerClass = [UnstableApi::class]) @OptIn(ExperimentalMaterial3Api::class) @Composable private fun MediaPlayerSurface( item: MediaItem, muted: Boolean, loopVideos: Boolean, slideshowMode: Boolean, controlsVisible: Boolean, playbackSpeed: Float = 1f, onSpeedChange: (Float) -&gt; Unit = {}, onToggleLoop: () -&gt; Unit = {}, hapticsEnabled: Boolean = true, onToggleChrome: () -&gt; Unit, onSwipeUpDelete: () -&gt; Unit, disableSwipeDelete: Boolean, onSwipeVertical: (Int) -&gt; Unit = {}, onToggleMute: () -&gt; Unit, onTogglePlayLocal: () -&gt; Unit, onVideoEnded: () -&gt; Unit, onSeekInteracted: () -&gt; Unit, controlsBottomPadding: Dp = 0.dp, onPlayingChange: (Boolean) -&gt; Unit = {}, )</ID>
+    <ID>CyclomaticComplexMethod:GalleryApp.kt$@OptIn(ExperimentalLayoutApi::class) // the *IgnoringVisibility insets @Composable fun GalleryApp( viewModel: GalleryViewModel = viewModel(), /** Multi-Video keeps its own ViewModel; the gallery's knows nothing about it. */ multiVideo: MultiVideoViewModel = viewModel(), onRequestOrientation: (Int) -&gt; Unit = {}, )</ID>
+    <ID>CyclomaticComplexMethod:GalleryViewModel.kt$GalleryViewModel$private fun buildLibraryState( inputs: LibraryInputs, sources: LibrarySources, sample: SampleInputs, ): LibraryState</ID>
+    <ID>CyclomaticComplexMethod:MediaGrid.kt$@Composable fun MediaGrid( items: List&lt;MediaItem&gt;, columns: Int, gridMode: GridMode, favouriteKeys: Set&lt;String&gt;, selectedKeys: Set&lt;String&gt;, onItemClick: (MediaItem) -&gt; Unit, onItemDoubleTap: (MediaItem) -&gt; Unit, onItemLongPress: (MediaItem) -&gt; Unit, onSwipeShuffle: (Int) -&gt; Unit, onSetColumns: (Int) -&gt; Unit, thumbnailPadding: Boolean = true, hapticsEnabled: Boolean = true, /** * Index of the top-left item the grid should show: the page window in swipe mode, the item * to scroll to in scroll mode. Kept by the ViewModel so it survives tab switches. */ pageStart: Int = 0, /** * Scroll mode reports (top-left item, last visible item, settled) as the user scrolls; * "settled" is true once motion stops. */ onScrolled: (Int, Int, Boolean) -&gt; Unit = { _, _, _ -&gt; }, /** Reports (page capacity, thumb bucket px) so the ViewModel can stride and warm caches. */ onPageGeometryChanged: (Int, Int) -&gt; Unit = { _, _ -&gt; }, modifier: Modifier = Modifier, )</ID>
+    <ID>CyclomaticComplexMethod:MediaGrid.kt$@Composable private fun MediaGridCell( item: MediaItem, thumbPx: Int, isFavourite: Boolean, isSelected: Boolean, rounded: Boolean = true, onClick: () -&gt; Unit, onDoubleTap: () -&gt; Unit, onLongPress: () -&gt; Unit, )</ID>
+    <ID>CyclomaticComplexMethod:MediaGrid.kt$@Composable private fun ScrollGrid( items: List&lt;MediaItem&gt;, pageStart: Int, cols: Int, thumbPx: Int, hSpacing: Dp, vSpacing: Dp, thumbnailPadding: Boolean, favouriteKeys: Set&lt;String&gt;, selectedKeys: Set&lt;String&gt;, onItemClick: (MediaItem) -&gt; Unit, onItemDoubleTap: (MediaItem) -&gt; Unit, onItemLongPress: (MediaItem) -&gt; Unit, onScrolled: (Int, Int, Boolean) -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>CyclomaticComplexMethod:MediaGrid.kt$@Composable private fun SwipePagedGrid( items: List&lt;MediaItem&gt;, pageStart: Int, pageCapacity: Int, cols: Int, thumbPx: Int, hSpacing: Dp, vSpacing: Dp, thumbnailPadding: Boolean, hapticsEnabled: Boolean, favouriteKeys: Set&lt;String&gt;, selectedKeys: Set&lt;String&gt;, onItemClick: (MediaItem) -&gt; Unit, onItemDoubleTap: (MediaItem) -&gt; Unit, onItemLongPress: (MediaItem) -&gt; Unit, onSwipeShuffle: (Int) -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>CyclomaticComplexMethod:MediaRepository.kt$MediaRepository$private suspend fun countExtensionRows( selectedNormalized: Set&lt;String&gt;, hiddenFolders: Map&lt;String, Boolean&gt;, into: MutableMap&lt;String, Int&gt;, )</ID>
+    <ID>CyclomaticComplexMethod:MediaRepository.kt$MediaRepository$private suspend fun queryCollection( collection: Uri, selectedFolders: Set&lt;String&gt;, hiddenFolders: Map&lt;String, Boolean&gt;, fileTypeFilters: Map&lt;String, Boolean&gt;, discoverOnly: Boolean, includeUnsupported: Boolean = false, keyFilter: Set&lt;String&gt;? = null, ): List&lt;MediaItem&gt;</ID>
+    <ID>CyclomaticComplexMethod:MediaRepository.kt$MediaRepository$private suspend fun walkSafTree(treeUriStr: String, onFile: (SafEntry) -&gt; Unit)</ID>
+    <ID>CyclomaticComplexMethod:MultiVideoWall.kt$@Composable fun MultiVideoWall(viewModel: MultiVideoViewModel, modifier: Modifier = Modifier)</ID>
+    <ID>CyclomaticComplexMethod:MultiVideoWall.kt$@androidx.annotation.OptIn(markerClass = [UnstableApi::class]) @Composable private fun WallTile( slotNumber: Int, video: WallVideo?, player: Player?, fill: Boolean, audible: Boolean, controlsVisible: Boolean, chipAlignment: Alignment, highlighted: Boolean, onTap: () -&gt; Unit, onSeekBy: (Long) -&gt; Unit, onTogglePlay: () -&gt; Unit, onToggleSound: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>CyclomaticComplexMethod:SettingsRepository.kt$SettingsJson$fun merge(base: AppSettings, json: String): AppSettings?</ID>
+    <ID>CyclomaticComplexMethod:SettingsRepository.kt$SettingsRepository$private fun settingsFromPrefs(prefs: Preferences): AppSettings</ID>
+    <ID>CyclomaticComplexMethod:SettingsScreen.kt$@Composable fun SettingsScreen( settings: AppSettings, discoveredFolders: List&lt;MediaRepository.FolderInfo&gt;, collapsedGroups: Set&lt;String&gt;, onToggleDark: () -&gt; Unit, onToggleAmoled: () -&gt; Unit, onSetAccent: (AccentColor) -&gt; Unit, appIcon: AppLauncherIcon, onSetAppIcon: (AppLauncherIcon) -&gt; Unit, onMoveTab: (AppTab, Int) -&gt; Unit, onToggleTabVisibility: (AppTab) -&gt; Unit, onToggleFolder: (String) -&gt; Unit, onToggleGroup: (String) -&gt; Unit, onToggleFileType: (String) -&gt; Unit, onToggleBehaviour: (String) -&gt; Unit, onToggleCopyFavs: () -&gt; Unit, onToggleShowAllFavourites: () -&gt; Unit, onChooseFavFolder: () -&gt; Unit, onOpenHiddenFolders: () -&gt; Unit, onExportSettings: () -&gt; Unit, onDownloadFavs: () -&gt; Unit, onImportSettings: () -&gt; Unit, onAddSafFolder: () -&gt; Unit, onOpenGithub: () -&gt; Unit = {}, onOpenRate: () -&gt; Unit = {}, onResetSettings: () -&gt; Unit, onShareLogs: () -&gt; Unit, appVersion: String, countsRefreshing: Boolean = false, onRefreshFileTypeCounts: () -&gt; Unit = {}, modifier: Modifier = Modifier, )</ID>
+    <ID>CyclomaticComplexMethod:VideoPicker.kt$@Composable fun VideoPicker( target: PickerTarget, libraryVideos: List&lt;MediaItem&gt;, onChooseLibrary: (List&lt;MediaItem&gt;) -&gt; Unit, onChooseUris: (List&lt;Uri&gt;) -&gt; Unit, onDismiss: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LambdaParameterEventTrailing:SettingsScreen.kt$onClick</ID>
+    <ID>LambdaParameterInRestartableEffect:FullscreenViewer.kt$onToggleChrome</ID>
+    <ID>LambdaParameterInRestartableEffect:FullscreenViewer.kt$onVideoEnded</ID>
+    <ID>LambdaParameterInRestartableEffect:GalleryApp.kt$onRequestOrientation</ID>
+    <ID>LambdaParameterInRestartableEffect:MediaGrid.kt$onPageGeometryChanged</ID>
+    <ID>LambdaParameterInRestartableEffect:SnackbarHost.kt$onAction</ID>
+    <ID>LambdaParameterInRestartableEffect:SnackbarHost.kt$onDismiss</ID>
+    <ID>LargeClass:GalleryViewModel.kt$GalleryViewModel : AndroidViewModel</ID>
+    <ID>LongMethod:AlbumsScreen.kt$@Composable fun AlbumsScreen( albums: List&lt;MediaRepository.FolderInfo&gt;, albumOpen: String?, albumItems: List&lt;MediaItem&gt;, columns: Int, noFolders: Boolean, favouriteKeys: Set&lt;String&gt;, selectedKeys: Set&lt;String&gt;, onOpenAlbum: (String) -&gt; Unit, onCloseAlbum: () -&gt; Unit, onShuffle: () -&gt; Unit, onItemClick: (MediaItem) -&gt; Unit, onItemDoubleTap: (MediaItem) -&gt; Unit, onItemLongPress: (MediaItem) -&gt; Unit, onSetColumns: (Int) -&gt; Unit, onGoSettings: () -&gt; Unit, thumbnailPadding: Boolean = true, /** Where the open album's grid is scrolled to; kept by the ViewModel. */ pageStart: Int = 0, /** (top-left item, last visible item, settled). */ onScrolled: (Int, Int, Boolean) -&gt; Unit = { _, _, _ -&gt; }, modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:FullscreenViewer.kt$@Composable fun FullscreenViewer( item: MediaItem?, index: Int, count: Int, /** Random access into the viewer's list — the pager composes neighbours ahead of a swipe. */ itemAt: (Int) -&gt; MediaItem?, isPlaying: Boolean, chromeVisible: Boolean, menuOpen: Boolean, speedMenuOpen: Boolean, speedIndex: Int, customMs: Long, isFavourite: Boolean, disableSwipeDelete: Boolean, deleteEnabled: Boolean = true, slideshowMode: Boolean = true, muted: Boolean = false, loopVideos: Boolean = true, hapticsEnabled: Boolean = true, onClose: () -&gt; Unit, onToggleChrome: () -&gt; Unit, /** A user swipe settled on an absolute index. */ onJumpTo: (Int) -&gt; Unit, onSwipeUpDelete: () -&gt; Unit, onTogglePlay: () -&gt; Unit, onToggleMenu: () -&gt; Unit, onToggleSpeedMenu: () -&gt; Unit, onSpeedSelected: (Int) -&gt; Unit, onToggleFavourite: () -&gt; Unit, onShare: () -&gt; Unit, onDelete: () -&gt; Unit, onDetails: () -&gt; Unit, onToggleMute: () -&gt; Unit = {}, onVideoEnded: () -&gt; Unit = {}, onUserInteracted: () -&gt; Unit = {}, chromeAutoHideNonce: Int = 0, prefetch: List&lt;MediaItem&gt; = emptyList(), /** Items 2-3 swipes away — warmed at thumb resolution after a 1 s dwell. */ farPrefetch: List&lt;MediaItem&gt; = emptyList(), gridThumbBucketPx: Int = 256, controlsBottomPadding: Dp = 0.dp, modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:FullscreenViewer.kt$@Composable private fun ZoomableImageSurface( item: MediaItem, decodeSize: Size, gridThumbBucketPx: Int, onToggleChrome: () -&gt; Unit, onSwipeUpDelete: () -&gt; Unit, disableSwipeDelete: Boolean, onSwipeVertical: (Int) -&gt; Unit = {}, )</ID>
+    <ID>LongMethod:FullscreenViewer.kt$@androidx.annotation.OptIn(markerClass = [UnstableApi::class]) @OptIn(ExperimentalMaterial3Api::class) @Composable private fun MediaPlayerSurface( item: MediaItem, muted: Boolean, loopVideos: Boolean, slideshowMode: Boolean, controlsVisible: Boolean, playbackSpeed: Float = 1f, onSpeedChange: (Float) -&gt; Unit = {}, onToggleLoop: () -&gt; Unit = {}, hapticsEnabled: Boolean = true, onToggleChrome: () -&gt; Unit, onSwipeUpDelete: () -&gt; Unit, disableSwipeDelete: Boolean, onSwipeVertical: (Int) -&gt; Unit = {}, onToggleMute: () -&gt; Unit, onTogglePlayLocal: () -&gt; Unit, onVideoEnded: () -&gt; Unit, onSeekInteracted: () -&gt; Unit, controlsBottomPadding: Dp = 0.dp, onPlayingChange: (Boolean) -&gt; Unit = {}, )</ID>
+    <ID>LongMethod:GalleryApp.kt$@OptIn(ExperimentalLayoutApi::class) // the *IgnoringVisibility insets @Composable fun GalleryApp( viewModel: GalleryViewModel = viewModel(), /** Multi-Video keeps its own ViewModel; the gallery's knows nothing about it. */ multiVideo: MultiVideoViewModel = viewModel(), onRequestOrientation: (Int) -&gt; Unit = {}, )</ID>
+    <ID>LongMethod:GalleryViewModel.kt$GalleryViewModel$private fun buildLibraryState( inputs: LibraryInputs, sources: LibrarySources, sample: SampleInputs, ): LibraryState</ID>
+    <ID>LongMethod:MediaGrid.kt$@Composable fun MediaGrid( items: List&lt;MediaItem&gt;, columns: Int, gridMode: GridMode, favouriteKeys: Set&lt;String&gt;, selectedKeys: Set&lt;String&gt;, onItemClick: (MediaItem) -&gt; Unit, onItemDoubleTap: (MediaItem) -&gt; Unit, onItemLongPress: (MediaItem) -&gt; Unit, onSwipeShuffle: (Int) -&gt; Unit, onSetColumns: (Int) -&gt; Unit, thumbnailPadding: Boolean = true, hapticsEnabled: Boolean = true, /** * Index of the top-left item the grid should show: the page window in swipe mode, the item * to scroll to in scroll mode. Kept by the ViewModel so it survives tab switches. */ pageStart: Int = 0, /** * Scroll mode reports (top-left item, last visible item, settled) as the user scrolls; * "settled" is true once motion stops. */ onScrolled: (Int, Int, Boolean) -&gt; Unit = { _, _, _ -&gt; }, /** Reports (page capacity, thumb bucket px) so the ViewModel can stride and warm caches. */ onPageGeometryChanged: (Int, Int) -&gt; Unit = { _, _ -&gt; }, modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:MediaGrid.kt$@Composable private fun MediaGridCell( item: MediaItem, thumbPx: Int, isFavourite: Boolean, isSelected: Boolean, rounded: Boolean = true, onClick: () -&gt; Unit, onDoubleTap: () -&gt; Unit, onLongPress: () -&gt; Unit, )</ID>
+    <ID>LongMethod:MediaGrid.kt$@Composable private fun ScrollGrid( items: List&lt;MediaItem&gt;, pageStart: Int, cols: Int, thumbPx: Int, hSpacing: Dp, vSpacing: Dp, thumbnailPadding: Boolean, favouriteKeys: Set&lt;String&gt;, selectedKeys: Set&lt;String&gt;, onItemClick: (MediaItem) -&gt; Unit, onItemDoubleTap: (MediaItem) -&gt; Unit, onItemLongPress: (MediaItem) -&gt; Unit, onScrolled: (Int, Int, Boolean) -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:MediaGrid.kt$@Composable private fun SwipePagedGrid( items: List&lt;MediaItem&gt;, pageStart: Int, pageCapacity: Int, cols: Int, thumbPx: Int, hSpacing: Dp, vSpacing: Dp, thumbnailPadding: Boolean, hapticsEnabled: Boolean, favouriteKeys: Set&lt;String&gt;, selectedKeys: Set&lt;String&gt;, onItemClick: (MediaItem) -&gt; Unit, onItemDoubleTap: (MediaItem) -&gt; Unit, onItemLongPress: (MediaItem) -&gt; Unit, onSwipeShuffle: (Int) -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:MediaListFilterBar.kt$@Composable fun MediaListFilterBar( title: String, types: FileTypeFilter, window: FavWindow?, typeMenuOpen: Boolean, onToggleTypeMenu: () -&gt; Unit, onToggleType: (String) -&gt; Unit, onSelectWindow: (FavWindow) -&gt; Unit, /** Favourites only: include items from folders that aren't currently selected. */ allFoldersEnabled: Boolean? = null, onToggleAllFolders: () -&gt; Unit = {}, /** A Shuffle button at the end of the bar, like the Gallery's; none when null. */ onShuffle: (() -&gt; Unit)? = null, modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:MediaRepository.kt$MediaRepository$private suspend fun queryCollection( collection: Uri, selectedFolders: Set&lt;String&gt;, hiddenFolders: Map&lt;String, Boolean&gt;, fileTypeFilters: Map&lt;String, Boolean&gt;, discoverOnly: Boolean, includeUnsupported: Boolean = false, keyFilter: Set&lt;String&gt;? = null, ): List&lt;MediaItem&gt;</ID>
+    <ID>LongMethod:MultiVideoSetupScreen.kt$@OptIn(ExperimentalFoundationApi::class) @Composable private fun PreviewTile( slotNumber: Int, video: WallVideo?, audible: Boolean, thumbPx: Int, isMoving: Boolean, moveInProgress: Boolean, onChoose: () -&gt; Unit, onStartMove: () -&gt; Unit, onPlaceMoving: () -&gt; Unit, onToggleSound: () -&gt; Unit, onRemove: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:MultiVideoSetupScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun MultiVideoSetupScreen(viewModel: MultiVideoViewModel, modifier: Modifier = Modifier)</ID>
+    <ID>LongMethod:MultiVideoWall.kt$@Composable fun MultiVideoWall(viewModel: MultiVideoViewModel, modifier: Modifier = Modifier)</ID>
+    <ID>LongMethod:MultiVideoWall.kt$@Composable private fun WallVideoBar( slotNumber: Int, video: WallVideo, player: Player, audible: Boolean, compact: Boolean, onTouch: () -&gt; Unit, onTogglePlay: () -&gt; Unit, onSeekBy: (Long) -&gt; Unit, onSeekTo: (Long) -&gt; Unit, onToggleSound: () -&gt; Unit, onReplace: () -&gt; Unit, onRemove: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:MultiVideoWall.kt$@OptIn(ExperimentalLayoutApi::class) @Composable private fun WallTopControls( state: MultiVideoState, compact: Boolean, showHint: Boolean, layoutMenuOpen: Boolean, onLayoutMenuOpenChange: (Boolean) -&gt; Unit, onExit: () -&gt; Unit, onPlayAll: () -&gt; Unit, onPauseAll: () -&gt; Unit, onRestartAll: () -&gt; Unit, onToggleWallSound: () -&gt; Unit, onSetLayout: (WallLayout) -&gt; Unit, onToggleFill: () -&gt; Unit, onCycleRotation: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:MultiVideoWall.kt$@androidx.annotation.OptIn(markerClass = [UnstableApi::class]) @Composable private fun WallTile( slotNumber: Int, video: WallVideo?, player: Player?, fill: Boolean, audible: Boolean, controlsVisible: Boolean, chipAlignment: Alignment, highlighted: Boolean, onTap: () -&gt; Unit, onSeekBy: (Long) -&gt; Unit, onTogglePlay: () -&gt; Unit, onToggleSound: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:SettingsRepository.kt$SettingsRepository$private fun settingsFromPrefs(prefs: Preferences): AppSettings</ID>
+    <ID>LongMethod:SettingsScreen.kt$@Composable fun SettingsScreen( settings: AppSettings, discoveredFolders: List&lt;MediaRepository.FolderInfo&gt;, collapsedGroups: Set&lt;String&gt;, onToggleDark: () -&gt; Unit, onToggleAmoled: () -&gt; Unit, onSetAccent: (AccentColor) -&gt; Unit, appIcon: AppLauncherIcon, onSetAppIcon: (AppLauncherIcon) -&gt; Unit, onMoveTab: (AppTab, Int) -&gt; Unit, onToggleTabVisibility: (AppTab) -&gt; Unit, onToggleFolder: (String) -&gt; Unit, onToggleGroup: (String) -&gt; Unit, onToggleFileType: (String) -&gt; Unit, onToggleBehaviour: (String) -&gt; Unit, onToggleCopyFavs: () -&gt; Unit, onToggleShowAllFavourites: () -&gt; Unit, onChooseFavFolder: () -&gt; Unit, onOpenHiddenFolders: () -&gt; Unit, onExportSettings: () -&gt; Unit, onDownloadFavs: () -&gt; Unit, onImportSettings: () -&gt; Unit, onAddSafFolder: () -&gt; Unit, onOpenGithub: () -&gt; Unit = {}, onOpenRate: () -&gt; Unit = {}, onResetSettings: () -&gt; Unit, onShareLogs: () -&gt; Unit, appVersion: String, countsRefreshing: Boolean = false, onRefreshFileTypeCounts: () -&gt; Unit = {}, modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:Theme.kt$@Composable fun WindfallTheme( themeMode: ThemeMode = ThemeMode.DARK, amoled: Boolean = false, accent: AccentColor = AccentColor.DEFAULT, useDynamicColor: Boolean = true, content: @Composable () -&gt; Unit, )</ID>
+    <ID>LongMethod:VideoPicker.kt$@Composable fun VideoPicker( target: PickerTarget, libraryVideos: List&lt;MediaItem&gt;, onChooseLibrary: (List&lt;MediaItem&gt;) -&gt; Unit, onChooseUris: (List&lt;Uri&gt;) -&gt; Unit, onDismiss: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongParameterList:AlbumsScreen.kt$( albums: List&lt;MediaRepository.FolderInfo&gt;, albumOpen: String?, albumItems: List&lt;MediaItem&gt;, columns: Int, noFolders: Boolean, favouriteKeys: Set&lt;String&gt;, selectedKeys: Set&lt;String&gt;, onOpenAlbum: (String) -&gt; Unit, onCloseAlbum: () -&gt; Unit, onShuffle: () -&gt; Unit, onItemClick: (MediaItem) -&gt; Unit, onItemDoubleTap: (MediaItem) -&gt; Unit, onItemLongPress: (MediaItem) -&gt; Unit, onSetColumns: (Int) -&gt; Unit, onGoSettings: () -&gt; Unit, thumbnailPadding: Boolean = true, /** Where the open album's grid is scrolled to; kept by the ViewModel. */ pageStart: Int = 0, /** (top-left item, last visible item, settled). */ onScrolled: (Int, Int, Boolean) -&gt; Unit = { _, _, _ -&gt; }, modifier: Modifier = Modifier, )</ID>
+    <ID>LongParameterList:FavouritesScreen.kt$( items: List&lt;MediaItem&gt;, columns: Int, noFolders: Boolean, favouriteKeys: Set&lt;String&gt;, selectedKeys: Set&lt;String&gt;, favTypes: FileTypeFilter, favWindow: FavWindow, favTypeMenuOpen: Boolean, showAllFolders: Boolean, onToggleAllFolders: () -&gt; Unit, onToggleFavTypeMenu: () -&gt; Unit, onToggleFavType: (String) -&gt; Unit, onSelectFavWindow: (FavWindow) -&gt; Unit, onItemClick: (MediaItem) -&gt; Unit, onItemDoubleTap: (MediaItem) -&gt; Unit, onItemLongPress: (MediaItem) -&gt; Unit, onSetColumns: (Int) -&gt; Unit, onGoSettings: () -&gt; Unit, /** Shared with the Gallery tab; only the Gallery exposes the toggle. */ gridMode: GridMode = GridMode.SCROLL, onSwipeShuffle: (Int) -&gt; Unit = {}, /** Window position when swipe-paging this tab's list. */ pageStart: Int = 0, onPageGeometryChanged: (Int, Int) -&gt; Unit = { _, _ -&gt; }, /** Scroll mode: (top-left item, last visible item, settled). */ onScrolled: (Int, Int, Boolean) -&gt; Unit = { _, _, _ -&gt; }, hapticsEnabled: Boolean = true, thumbnailPadding: Boolean = true, modifier: Modifier = Modifier, )</ID>
+    <ID>LongParameterList:FullscreenViewer.kt$( item: MediaItem, decodeSize: Size, gridThumbBucketPx: Int, onToggleChrome: () -&gt; Unit, onSwipeUpDelete: () -&gt; Unit, disableSwipeDelete: Boolean, onSwipeVertical: (Int) -&gt; Unit = {}, )</ID>
+    <ID>LongParameterList:FullscreenViewer.kt$( item: MediaItem, muted: Boolean, loopVideos: Boolean, slideshowMode: Boolean, controlsVisible: Boolean, playbackSpeed: Float = 1f, onSpeedChange: (Float) -&gt; Unit = {}, onToggleLoop: () -&gt; Unit = {}, hapticsEnabled: Boolean = true, onToggleChrome: () -&gt; Unit, onSwipeUpDelete: () -&gt; Unit, disableSwipeDelete: Boolean, onSwipeVertical: (Int) -&gt; Unit = {}, onToggleMute: () -&gt; Unit, onTogglePlayLocal: () -&gt; Unit, onVideoEnded: () -&gt; Unit, onSeekInteracted: () -&gt; Unit, controlsBottomPadding: Dp = 0.dp, onPlayingChange: (Boolean) -&gt; Unit = {}, )</ID>
+    <ID>LongParameterList:FullscreenViewer.kt$( item: MediaItem?, index: Int, count: Int, /** Random access into the viewer's list — the pager composes neighbours ahead of a swipe. */ itemAt: (Int) -&gt; MediaItem?, isPlaying: Boolean, chromeVisible: Boolean, menuOpen: Boolean, speedMenuOpen: Boolean, speedIndex: Int, customMs: Long, isFavourite: Boolean, disableSwipeDelete: Boolean, deleteEnabled: Boolean = true, slideshowMode: Boolean = true, muted: Boolean = false, loopVideos: Boolean = true, hapticsEnabled: Boolean = true, onClose: () -&gt; Unit, onToggleChrome: () -&gt; Unit, /** A user swipe settled on an absolute index. */ onJumpTo: (Int) -&gt; Unit, onSwipeUpDelete: () -&gt; Unit, onTogglePlay: () -&gt; Unit, onToggleMenu: () -&gt; Unit, onToggleSpeedMenu: () -&gt; Unit, onSpeedSelected: (Int) -&gt; Unit, onToggleFavourite: () -&gt; Unit, onShare: () -&gt; Unit, onDelete: () -&gt; Unit, onDetails: () -&gt; Unit, onToggleMute: () -&gt; Unit = {}, onVideoEnded: () -&gt; Unit = {}, onUserInteracted: () -&gt; Unit = {}, chromeAutoHideNonce: Int = 0, prefetch: List&lt;MediaItem&gt; = emptyList(), /** Items 2-3 swipes away — warmed at thumb resolution after a 1 s dwell. */ farPrefetch: List&lt;MediaItem&gt; = emptyList(), gridThumbBucketPx: Int = 256, controlsBottomPadding: Dp = 0.dp, modifier: Modifier = Modifier, )</ID>
+    <ID>LongParameterList:GalleryScreen.kt$( items: List&lt;MediaItem&gt;, columns: Int, gridMode: GridMode, noFolders: Boolean, favouriteKeys: Set&lt;String&gt;, selectedKeys: Set&lt;String&gt;, onToggleGridMode: () -&gt; Unit, onCycleColumns: () -&gt; Unit, onShuffle: () -&gt; Unit, onItemClick: (MediaItem) -&gt; Unit, onItemDoubleTap: (MediaItem) -&gt; Unit, onItemLongPress: (MediaItem) -&gt; Unit, onSwipeShuffle: (Int) -&gt; Unit, onSetColumns: (Int) -&gt; Unit, thumbnailPadding: Boolean = true, hapticsEnabled: Boolean = true, /** Everything matching the current filters; [items] is a random slice of it. */ totalCount: Int = items.size, /** First item of the currently visible page — a window into [items] (swipe mode). */ pageStart: Int = 0, /** Reports (page capacity, thumb bucket px) up to the ViewModel. */ onPageGeometryChanged: (Int, Int) -&gt; Unit = { _, _ -&gt; }, /** Scroll mode: (top-left item, last visible item, settled). */ onScrolled: (Int, Int, Boolean) -&gt; Unit = { _, _, _ -&gt; }, onGoSettings: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongParameterList:MainScaffold.kt$( currentTab: AppTab, visibleTabs: List&lt;AppTab&gt;, viewerOpen: Boolean, viewerSlideshowMode: Boolean = false, selectMode: Boolean, snackbarHost: @Composable () -&gt; Unit, selectionBar: @Composable () -&gt; Unit, bottomBarVisible: Boolean = true, onTabSelected: (AppTab) -&gt; Unit, content: @Composable () -&gt; Unit, )</ID>
+    <ID>LongParameterList:MediaGrid.kt$( item: MediaItem, thumbPx: Int, isFavourite: Boolean, isSelected: Boolean, rounded: Boolean = true, onClick: () -&gt; Unit, onDoubleTap: () -&gt; Unit, onLongPress: () -&gt; Unit, )</ID>
+    <ID>LongParameterList:MediaGrid.kt$( items: List&lt;MediaItem&gt;, cols: Int, thumbPx: Int, hSpacing: Dp, vSpacing: Dp, thumbnailPadding: Boolean, favouriteKeys: Set&lt;String&gt;, selectedKeys: Set&lt;String&gt;, onItemClick: (MediaItem) -&gt; Unit, onItemDoubleTap: (MediaItem) -&gt; Unit, onItemLongPress: (MediaItem) -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongParameterList:MediaGrid.kt$( items: List&lt;MediaItem&gt;, columns: Int, gridMode: GridMode, favouriteKeys: Set&lt;String&gt;, selectedKeys: Set&lt;String&gt;, onItemClick: (MediaItem) -&gt; Unit, onItemDoubleTap: (MediaItem) -&gt; Unit, onItemLongPress: (MediaItem) -&gt; Unit, onSwipeShuffle: (Int) -&gt; Unit, onSetColumns: (Int) -&gt; Unit, thumbnailPadding: Boolean = true, hapticsEnabled: Boolean = true, /** * Index of the top-left item the grid should show: the page window in swipe mode, the item * to scroll to in scroll mode. Kept by the ViewModel so it survives tab switches. */ pageStart: Int = 0, /** * Scroll mode reports (top-left item, last visible item, settled) as the user scrolls; * "settled" is true once motion stops. */ onScrolled: (Int, Int, Boolean) -&gt; Unit = { _, _, _ -&gt; }, /** Reports (page capacity, thumb bucket px) so the ViewModel can stride and warm caches. */ onPageGeometryChanged: (Int, Int) -&gt; Unit = { _, _ -&gt; }, modifier: Modifier = Modifier, )</ID>
+    <ID>LongParameterList:MediaGrid.kt$( items: List&lt;MediaItem&gt;, pageStart: Int, cols: Int, thumbPx: Int, hSpacing: Dp, vSpacing: Dp, thumbnailPadding: Boolean, favouriteKeys: Set&lt;String&gt;, selectedKeys: Set&lt;String&gt;, onItemClick: (MediaItem) -&gt; Unit, onItemDoubleTap: (MediaItem) -&gt; Unit, onItemLongPress: (MediaItem) -&gt; Unit, onScrolled: (Int, Int, Boolean) -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongParameterList:MediaGrid.kt$( items: List&lt;MediaItem&gt;, pageStart: Int, pageCapacity: Int, cols: Int, thumbPx: Int, hSpacing: Dp, vSpacing: Dp, thumbnailPadding: Boolean, hapticsEnabled: Boolean, favouriteKeys: Set&lt;String&gt;, selectedKeys: Set&lt;String&gt;, onItemClick: (MediaItem) -&gt; Unit, onItemDoubleTap: (MediaItem) -&gt; Unit, onItemLongPress: (MediaItem) -&gt; Unit, onSwipeShuffle: (Int) -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongParameterList:MediaListFilterBar.kt$( title: String, types: FileTypeFilter, window: FavWindow?, typeMenuOpen: Boolean, onToggleTypeMenu: () -&gt; Unit, onToggleType: (String) -&gt; Unit, onSelectWindow: (FavWindow) -&gt; Unit, /** Favourites only: include items from folders that aren't currently selected. */ allFoldersEnabled: Boolean? = null, onToggleAllFolders: () -&gt; Unit = {}, /** A Shuffle button at the end of the bar, like the Gallery's; none when null. */ onShuffle: (() -&gt; Unit)? = null, modifier: Modifier = Modifier, )</ID>
+    <ID>LongParameterList:MediaRepository.kt$MediaRepository$( collection: Uri, selectedFolders: Set&lt;String&gt;, hiddenFolders: Map&lt;String, Boolean&gt;, fileTypeFilters: Map&lt;String, Boolean&gt;, discoverOnly: Boolean, includeUnsupported: Boolean = false, keyFilter: Set&lt;String&gt;? = null, )</ID>
+    <ID>LongParameterList:MultiVideoSetupScreen.kt$( slotNumber: Int, video: WallVideo?, audible: Boolean, thumbPx: Int, isMoving: Boolean, moveInProgress: Boolean, onChoose: () -&gt; Unit, onStartMove: () -&gt; Unit, onPlaceMoving: () -&gt; Unit, onToggleSound: () -&gt; Unit, onRemove: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongParameterList:MultiVideoSetupScreen.kt$( state: MultiVideoState, movingSlot: Int?, onChoose: (Int) -&gt; Unit, onStartMove: (Int) -&gt; Unit, onPlaceMoving: (Int) -&gt; Unit, onToggleSound: (Int) -&gt; Unit, onRemove: (Int) -&gt; Unit, )</ID>
+    <ID>LongParameterList:MultiVideoWall.kt$( slotNumber: Int, video: WallVideo, player: Player, audible: Boolean, compact: Boolean, onTouch: () -&gt; Unit, onTogglePlay: () -&gt; Unit, onSeekBy: (Long) -&gt; Unit, onSeekTo: (Long) -&gt; Unit, onToggleSound: () -&gt; Unit, onReplace: () -&gt; Unit, onRemove: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongParameterList:MultiVideoWall.kt$( slotNumber: Int, video: WallVideo?, player: Player?, fill: Boolean, audible: Boolean, controlsVisible: Boolean, chipAlignment: Alignment, highlighted: Boolean, onTap: () -&gt; Unit, onSeekBy: (Long) -&gt; Unit, onTogglePlay: () -&gt; Unit, onToggleSound: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongParameterList:MultiVideoWall.kt$( state: MultiVideoState, compact: Boolean, showHint: Boolean, layoutMenuOpen: Boolean, onLayoutMenuOpenChange: (Boolean) -&gt; Unit, onExit: () -&gt; Unit, onPlayAll: () -&gt; Unit, onPauseAll: () -&gt; Unit, onRestartAll: () -&gt; Unit, onToggleWallSound: () -&gt; Unit, onSetLayout: (WallLayout) -&gt; Unit, onToggleFill: () -&gt; Unit, onCycleRotation: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongParameterList:RecentScreen.kt$( items: List&lt;MediaItem&gt;, columns: Int, noFolders: Boolean, favouriteKeys: Set&lt;String&gt;, selectedKeys: Set&lt;String&gt;, listTypes: FileTypeFilter, listWindow: FavWindow, typeMenuOpen: Boolean, onToggleTypeMenu: () -&gt; Unit, onToggleType: (String) -&gt; Unit, onSelectWindow: (FavWindow) -&gt; Unit, onItemClick: (MediaItem) -&gt; Unit, onItemDoubleTap: (MediaItem) -&gt; Unit, onItemLongPress: (MediaItem) -&gt; Unit, onSetColumns: (Int) -&gt; Unit, onGoSettings: () -&gt; Unit, /** Shared with the Gallery tab; only the Gallery exposes the toggle. */ gridMode: GridMode = GridMode.SCROLL, /** Deals Recent a new random order. */ onShuffle: () -&gt; Unit = {}, onSwipeShuffle: (Int) -&gt; Unit = {}, /** Window position when swipe-paging this tab's list. */ pageStart: Int = 0, onPageGeometryChanged: (Int, Int) -&gt; Unit = { _, _ -&gt; }, /** Scroll mode: (top-left item, last visible item, settled). */ onScrolled: (Int, Int, Boolean) -&gt; Unit = { _, _, _ -&gt; }, hapticsEnabled: Boolean = true, thumbnailPadding: Boolean = true, modifier: Modifier = Modifier, )</ID>
+    <ID>LongParameterList:SettingsScreen.kt$( settings: AppSettings, discoveredFolders: List&lt;MediaRepository.FolderInfo&gt;, collapsedGroups: Set&lt;String&gt;, onToggleDark: () -&gt; Unit, onToggleAmoled: () -&gt; Unit, onSetAccent: (AccentColor) -&gt; Unit, appIcon: AppLauncherIcon, onSetAppIcon: (AppLauncherIcon) -&gt; Unit, onMoveTab: (AppTab, Int) -&gt; Unit, onToggleTabVisibility: (AppTab) -&gt; Unit, onToggleFolder: (String) -&gt; Unit, onToggleGroup: (String) -&gt; Unit, onToggleFileType: (String) -&gt; Unit, onToggleBehaviour: (String) -&gt; Unit, onToggleCopyFavs: () -&gt; Unit, onToggleShowAllFavourites: () -&gt; Unit, onChooseFavFolder: () -&gt; Unit, onOpenHiddenFolders: () -&gt; Unit, onExportSettings: () -&gt; Unit, onDownloadFavs: () -&gt; Unit, onImportSettings: () -&gt; Unit, onAddSafFolder: () -&gt; Unit, onOpenGithub: () -&gt; Unit = {}, onOpenRate: () -&gt; Unit = {}, onResetSettings: () -&gt; Unit, onShareLogs: () -&gt; Unit, appVersion: String, countsRefreshing: Boolean = false, onRefreshFileTypeCounts: () -&gt; Unit = {}, modifier: Modifier = Modifier, )</ID>
+    <ID>LongParameterList:SettingsScreen.kt$( tab: AppTab, locked: Boolean, visible: Boolean, canMoveUp: Boolean, canMoveDown: Boolean, onMoveUp: () -&gt; Unit, onMoveDown: () -&gt; Unit, onToggleVisibility: () -&gt; Unit, )</ID>
+    <ID>LongParameterList:SnackbarHost.kt$( count: Int, deleteEnabled: Boolean, onExit: () -&gt; Unit, onFavourite: () -&gt; Unit, onExport: () -&gt; Unit, onDelete: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongParameterList:VideoPicker.kt$( target: PickerTarget, libraryVideos: List&lt;MediaItem&gt;, onChooseLibrary: (List&lt;MediaItem&gt;) -&gt; Unit, onChooseUris: (List&lt;Uri&gt;) -&gt; Unit, onDismiss: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LoopWithTooManyJumpStatements:MediaGrid.kt$for</ID>
+    <ID>LoopWithTooManyJumpStatements:MediaRepository.kt$MediaRepository$while</ID>
+    <ID>MagicNumber:AlbumsScreen.kt$1.15f</ID>
+    <ID>MagicNumber:AlbumsScreen.kt$4</ID>
+    <ID>MagicNumber:AndroidVersionGate.kt$AndroidVersionGate$31</ID>
+    <ID>MagicNumber:AndroidVersionGate.kt$AndroidVersionGate$33</ID>
+    <ID>MagicNumber:AndroidVersionGate.kt$AndroidVersionGate$34</ID>
+    <ID>MagicNumber:AndroidVersionGate.kt$AndroidVersionGate$35</ID>
+    <ID>MagicNumber:AndroidVersionGate.kt$AndroidVersionGate$36</ID>
+    <ID>MagicNumber:AppModels.kt$30</ID>
+    <ID>MagicNumber:AppModels.kt$AccentColor.LAVENDER$0xFFC9B7F5</ID>
+    <ID>MagicNumber:AppModels.kt$AccentColor.MINT$0xFF8FF0C4</ID>
+    <ID>MagicNumber:AppModels.kt$AccentColor.PEACH$0xFFFFCBA8</ID>
+    <ID>MagicNumber:AppModels.kt$AccentColor.ROSE$0xFFE9A8BD</ID>
+    <ID>MagicNumber:AppModels.kt$AccentColor.SAND$0xFFECD79A</ID>
+    <ID>MagicNumber:AppModels.kt$AccentColor.SKY$0xFFA9D9FF</ID>
+    <ID>MagicNumber:AppModels.kt$AppSettings$30</ID>
+    <ID>MagicNumber:AppModels.kt$FavWindow$365</ID>
+    <ID>MagicNumber:AppModels.kt$FavWindow$3650</ID>
+    <ID>MagicNumber:AppModels.kt$FavWindow.Companion$30</ID>
+    <ID>MagicNumber:AppModels.kt$FavWindow.Companion$3650</ID>
+    <ID>MagicNumber:AppModels.kt$SlideshowSpeeds$10_000</ID>
+    <ID>MagicNumber:AppModels.kt$SlideshowSpeeds$14</ID>
+    <ID>MagicNumber:AppModels.kt$SlideshowSpeeds$15_000</ID>
+    <ID>MagicNumber:AppModels.kt$SlideshowSpeeds$1_000</ID>
+    <ID>MagicNumber:AppModels.kt$SlideshowSpeeds$2_000</ID>
+    <ID>MagicNumber:AppModels.kt$SlideshowSpeeds$30</ID>
+    <ID>MagicNumber:AppModels.kt$SlideshowSpeeds$300_000</ID>
+    <ID>MagicNumber:AppModels.kt$SlideshowSpeeds$30_000</ID>
+    <ID>MagicNumber:AppModels.kt$SlideshowSpeeds$365</ID>
+    <ID>MagicNumber:AppModels.kt$SlideshowSpeeds$5_000</ID>
+    <ID>MagicNumber:AppModels.kt$SlideshowSpeeds$60</ID>
+    <ID>MagicNumber:AppModels.kt$SlideshowSpeeds$60_000</ID>
+    <ID>MagicNumber:AppModels.kt$SlideshowSpeeds$7</ID>
+    <ID>MagicNumber:AppModels.kt$SlideshowSpeeds$8_000</ID>
+    <ID>MagicNumber:AppModels.kt$SlideshowSpeeds$90</ID>
+    <ID>MagicNumber:Color.kt$0xFF141316</ID>
+    <ID>MagicNumber:Color.kt$0xFF1C1B1E</ID>
+    <ID>MagicNumber:Color.kt$0xFF211F23</ID>
+    <ID>MagicNumber:Color.kt$0xFF2B292E</ID>
+    <ID>MagicNumber:Color.kt$0xFF363239</ID>
+    <ID>MagicNumber:Color.kt$0xFFE3DDE6</ID>
+    <ID>MagicNumber:Color.kt$0xFFE9E3EC</ID>
+    <ID>MagicNumber:Color.kt$0xFFEFE9F1</ID>
+    <ID>MagicNumber:Color.kt$0xFFF38282</ID>
+    <ID>MagicNumber:Color.kt$0xFFF5F0F7</ID>
+    <ID>MagicNumber:Color.kt$0xFFFDFBFF</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF001D33</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF00210F</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF00344F</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF00391F</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF004B6F</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF005230</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF00639B</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF006D43</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF0C1D2E</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF0F1F13</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF1D192B</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF21005D</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF211B08</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF221B00</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF2B151C</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF2B1709</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF2E1500</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF381E72</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF3B0721</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF3C4858</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF3C4B41</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF3D2F00</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF4A4458</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF4E4739</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF4F378B</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF532200</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF54182F</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF584400</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF5A3F46</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF5A4034</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF6750A4</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF6F3046</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF6F5D00</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF6FDBA8</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF713600</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF8C4A60</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF8CCEFF</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF8F4C00</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFF8FF8C4</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFFB9CCBE</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFFCBE6FF</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFFD0BCFF</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFFD3E4F5</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFFD5E8D8</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFFE4C36C</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFFE8DEF8</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFFEADDFF</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFFEAE2CE</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFFEFE0C0</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFFF5DED0</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFFFEE08C</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFFFFB1C7</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFFFFB68C</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFFFFD9E2</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFFFFDBC8</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFFFFE08C</ID>
+    <ID>MagicNumber:Color.kt$AccentPalettes$0xFFFFFFFF</ID>
+    <ID>MagicNumber:Dialogs.kt$0.4f</ID>
+    <ID>MagicNumber:Dialogs.kt$0.6f</ID>
+    <ID>MagicNumber:Dialogs.kt$0xFF43A047</ID>
+    <ID>MagicNumber:Dialogs.kt$0xFFE53935</ID>
+    <ID>MagicNumber:Dialogs.kt$1024.0</ID>
+    <ID>MagicNumber:FavouritesExporter.kt$FavouritesExporter$1024</ID>
+    <ID>MagicNumber:FavouritesExporter.kt$FavouritesExporter$64</ID>
+    <ID>MagicNumber:FullscreenViewer.kt$0.02f</ID>
+    <ID>MagicNumber:FullscreenViewer.kt$0.05f</ID>
+    <ID>MagicNumber:FullscreenViewer.kt$0.25f</ID>
+    <ID>MagicNumber:FullscreenViewer.kt$0.5f</ID>
+    <ID>MagicNumber:FullscreenViewer.kt$0.62f</ID>
+    <ID>MagicNumber:FullscreenViewer.kt$0.6f</ID>
+    <ID>MagicNumber:FullscreenViewer.kt$0.75f</ID>
+    <ID>MagicNumber:FullscreenViewer.kt$0.8f</ID>
+    <ID>MagicNumber:FullscreenViewer.kt$1.01f</ID>
+    <ID>MagicNumber:FullscreenViewer.kt$1.25f</ID>
+    <ID>MagicNumber:FullscreenViewer.kt$1.5f</ID>
+    <ID>MagicNumber:FullscreenViewer.kt$1000</ID>
+    <ID>MagicNumber:FullscreenViewer.kt$1_000</ID>
+    <ID>MagicNumber:FullscreenViewer.kt$250</ID>
+    <ID>MagicNumber:FullscreenViewer.kt$50</ID>
+    <ID>MagicNumber:FullscreenViewer.kt$5f</ID>
+    <ID>MagicNumber:FullscreenViewer.kt$60</ID>
+    <ID>MagicNumber:FullscreenViewer.kt$600</ID>
+    <ID>MagicNumber:FullscreenViewer.kt$60f</ID>
+    <ID>MagicNumber:FullscreenViewer.kt$900</ID>
+    <ID>MagicNumber:GalleryApplication.kt$GalleryApplication$0.03</ID>
+    <ID>MagicNumber:GalleryApplication.kt$GalleryApplication$0.25</ID>
+    <ID>MagicNumber:GalleryApplication.kt$GalleryApplication$0.45</ID>
+    <ID>MagicNumber:GalleryApplication.kt$GalleryApplication$1024L</ID>
+    <ID>MagicNumber:GalleryApplication.kt$GalleryApplication$192</ID>
+    <ID>MagicNumber:GalleryApplication.kt$GalleryApplication$3</ID>
+    <ID>MagicNumber:GalleryApplication.kt$GalleryApplication$512</ID>
+    <ID>MagicNumber:GalleryApplication.kt$GalleryApplication$512L</ID>
+    <ID>MagicNumber:GalleryViewModel.kt$8_192</ID>
+    <ID>MagicNumber:GalleryViewModel.kt$GalleryViewModel$1000</ID>
+    <ID>MagicNumber:GalleryViewModel.kt$GalleryViewModel$180</ID>
+    <ID>MagicNumber:GalleryViewModel.kt$GalleryViewModel$256</ID>
+    <ID>MagicNumber:GalleryViewModel.kt$GalleryViewModel$2_000</ID>
+    <ID>MagicNumber:GalleryViewModel.kt$GalleryViewModel$5_000</ID>
+    <ID>MagicNumber:GalleryViewModel.kt$GalleryViewModel$5_000L</ID>
+    <ID>MagicNumber:GalleryViewModel.kt$GalleryViewModel$6</ID>
+    <ID>MagicNumber:GalleryViewModel.kt$GalleryViewModel.LibraryInputs$30</ID>
+    <ID>MagicNumber:GalleryViewModel.kt$GalleryViewModel.ViewerUi$2</ID>
+    <ID>MagicNumber:GalleryViewModel.kt$GalleryViewModel.ViewerUi$3</ID>
+    <ID>MagicNumber:GalleryViewModel.kt$GalleryViewModel.ViewerUi$4</ID>
+    <ID>MagicNumber:MainScaffold.kt$50</ID>
+    <ID>MagicNumber:MediaGrid.kt$0.02f</ID>
+    <ID>MagicNumber:MediaGrid.kt$0.5f</ID>
+    <ID>MagicNumber:MediaGrid.kt$1.15f</ID>
+    <ID>MagicNumber:MediaGrid.kt$2.5f</ID>
+    <ID>MagicNumber:MediaIndexCache.kt$MediaIndexCache$13</ID>
+    <ID>MagicNumber:MediaIndexCache.kt$MediaIndexCache$4096</ID>
+    <ID>MagicNumber:MediaIndexCache.kt$MediaIndexCache$5</ID>
+    <ID>MagicNumber:MediaItem.kt$MediaItem$4</ID>
+    <ID>MagicNumber:MediaItem.kt$MediaItem$86_400_000L</ID>
+    <ID>MagicNumber:MediaListFilterBar.kt$4</ID>
+    <ID>MagicNumber:MultiVideoSetupScreen.kt$50</ID>
+    <ID>MagicNumber:MultiVideoWall.kt$150</ID>
+    <ID>MagicNumber:MultiVideoWall.kt$180</ID>
+    <ID>MagicNumber:MultiVideoWall.kt$250</ID>
+    <ID>MagicNumber:MultiVideoWall.kt$3f</ID>
+    <ID>MagicNumber:MultiVideoWall.kt$50</ID>
+    <ID>MagicNumber:PlayerWarmPool.kt$VideoPositionMemory$64</ID>
+    <ID>MagicNumber:SettingsRepository.kt$SettingsJson$1_000L</ID>
+    <ID>MagicNumber:SettingsRepository.kt$SettingsJson$365</ID>
+    <ID>MagicNumber:SettingsRepository.kt$SettingsJson$3_600_000L</ID>
+    <ID>MagicNumber:SettingsRepository.kt$SettingsJson$6</ID>
+    <ID>MagicNumber:SettingsRepository.kt$SettingsRepository$30</ID>
+    <ID>MagicNumber:SettingsScreen.kt$0xFF0E3A43</ID>
+    <ID>MagicNumber:SettingsScreen.kt$0xFFDFE5E0</ID>
+    <ID>MagicNumber:SettingsScreen.kt$1.45f</ID>
+    <ID>MagicNumber:ShuffleDeck.kt$ShuffleDeck$32</ID>
+    <ID>MagicNumber:Theme.kt$0xFF080809</ID>
+    <ID>MagicNumber:Theme.kt$0xFF0E0E10</ID>
+    <ID>MagicNumber:Theme.kt$0xFF161618</ID>
+    <ID>MagicNumber:Theme.kt$0xFF1C1B1E</ID>
+    <ID>MagicNumber:Theme.kt$0xFF202024</ID>
+    <ID>MagicNumber:Theme.kt$0xFF48454E</ID>
+    <ID>MagicNumber:Theme.kt$0xFF79767D</ID>
+    <ID>MagicNumber:Theme.kt$0xFF948F99</ID>
+    <ID>MagicNumber:Theme.kt$0xFFBA1A1A</ID>
+    <ID>MagicNumber:Theme.kt$0xFFC9C5CF</ID>
+    <ID>MagicNumber:Theme.kt$0xFFCAC4CF</ID>
+    <ID>MagicNumber:Theme.kt$0xFFE6E1E6</ID>
+    <ID>MagicNumber:Theme.kt$0xFFFFB4AB</ID>
+    <ID>MagicNumber:ThumbSpec.kt$ThumbSpec$128</ID>
+    <ID>MagicNumber:ThumbSpec.kt$ThumbSpec$192</ID>
+    <ID>MagicNumber:ThumbSpec.kt$ThumbSpec$256</ID>
+    <ID>MagicNumber:ThumbSpec.kt$ThumbSpec$3</ID>
+    <ID>MagicNumber:ThumbSpec.kt$ThumbSpec$384</ID>
+    <ID>MagicNumber:ThumbSpec.kt$ThumbSpec$512</ID>
+    <ID>MagicNumber:ThumbSpec.kt$ThumbSpec$6</ID>
+    <ID>MagicNumber:ThumbSpec.kt$ThumbSpec$8</ID>
+    <ID>MagicNumber:VideoPicker.kt$3</ID>
+    <ID>MagicNumber:VideoPicker.kt$8</ID>
+    <ID>MagicNumber:WallModels.kt$WallClock$1_000L</ID>
+    <ID>MagicNumber:WallModels.kt$WallClock$3_600</ID>
+    <ID>MagicNumber:WallModels.kt$WallClock$60</ID>
+    <ID>MagicNumber:WallModels.kt$WallGrid$3</ID>
+    <ID>MagicNumber:WallModels.kt$WallGrid$4</ID>
+    <ID>MagicNumber:WallModels.kt$WallLayout.FOUR$4</ID>
+    <ID>MagicNumber:WallModels.kt$WallLayout.SIX$6</ID>
+    <ID>MagicNumber:WallModels.kt$WallLayout.THREE$3</ID>
+    <ID>MagicNumber:WallPlayers.kt$WallPlayers.&lt;no name provided&gt;$0.75f</ID>
+    <ID>MagicNumber:WallPlayers.kt$WallPlayers.&lt;no name provided&gt;$16</ID>
+    <ID>MatchingDeclarationName:MainScaffold.kt$GalleryTabBar</ID>
+    <ID>MatchingDeclarationName:RandomSample.kt$SamplingDefaults</ID>
+    <ID>MaxLineLength:Dialogs.kt$Text("Appearance, folders, filters, and safety toggles return to defaults. Favourites are kept. You can Undo from the snackbar.")</ID>
+    <ID>MaxLineLength:FavouritesScreen.kt$Text("Nothing here yet", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp))</ID>
+    <ID>MaxLineLength:FullscreenViewer.kt$"${formatMs(if (scrubbing) (scrubValue * durationMs).toLong() else positionMs)} / ${formatMs(durationMs)}"</ID>
+    <ID>MaxLineLength:FullscreenViewer.kt$if (muted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp</ID>
+    <ID>MaxLineLength:MediaItemKeyTest.kt$MediaItemKeyTest$private val safUri = "content://com.android.externalstorage.documents/tree/primary%3APics/document/primary%3APics%2FIMG_0001.jpg"</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$"Reorder the bottom bar and choose which tabs appear. Gallery and More are always shown. Multi-Video and Albums are off by default."</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$ActionRow(Icons.Default.FolderCopy, "Favourites folder", "Auto copy/remove favourites", settings.copyFavs, onToggleCopyFavs)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$AppIconChoice(AppLauncherIcon.CLASSIC, R.drawable.ic_fg_gemini_replica, Color(0xFF0E3A43), appIcon, onSetAppIcon)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$AppIconChoice(AppLauncherIcon.MONO, R.drawable.ic_fg_mono_still, Color(0xFFDFE5E0), appIcon, onSetAppIcon)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$AppIconChoice(AppLauncherIcon.WINDROSE, R.drawable.ic_fg_windrose_square, Color(0xFF0E3A43), appIcon, onSetAppIcon)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$Text(settings.copyFavPath.ifBlank { "Pick a folder…" }, color = MaterialTheme.colorScheme.onSurfaceVariant)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$if (settings.accent == accent) MaterialTheme.colorScheme.onSurface else Color.Transparent</ID>
+    <ID>MaxLineLength:SettingsScreen.kt$subtitle = "In fullscreen, swipe up on a photo to move it to the trash (Android asks first). When on, that gesture is blocked."</ID>
+    <ID>ModifierMissing:GalleryApp.kt$GalleryApp</ID>
+    <ID>ModifierMissing:MainScaffold.kt$MainScaffold</ID>
+    <ID>ModifierMissing:SnackbarHost.kt$GallerySnackbarHost</ID>
+    <ID>MutableStateAutoboxing:FullscreenViewer.kt$mutableStateOf(0L)</ID>
+    <ID>NestedBlockDepth:MediaRepository.kt$MediaRepository$private suspend fun queryCollection( collection: Uri, selectedFolders: Set&lt;String&gt;, hiddenFolders: Map&lt;String, Boolean&gt;, fileTypeFilters: Map&lt;String, Boolean&gt;, discoverOnly: Boolean, includeUnsupported: Boolean = false, keyFilter: Set&lt;String&gt;? = null, ): List&lt;MediaItem&gt;</ID>
+    <ID>NestedBlockDepth:MediaRepository.kt$MediaRepository$private suspend fun walkSafTree(treeUriStr: String, onFile: (SafEntry) -&gt; Unit)</ID>
+    <ID>ParameterNaming:AlbumsScreen.kt$onScrolled</ID>
+    <ID>ParameterNaming:FavouritesScreen.kt$onPageGeometryChanged</ID>
+    <ID>ParameterNaming:FavouritesScreen.kt$onScrolled</ID>
+    <ID>ParameterNaming:FullscreenViewer.kt$onSeekInteracted</ID>
+    <ID>ParameterNaming:FullscreenViewer.kt$onSpeedSelected</ID>
+    <ID>ParameterNaming:FullscreenViewer.kt$onUserInteracted</ID>
+    <ID>ParameterNaming:FullscreenViewer.kt$onVideoEnded</ID>
+    <ID>ParameterNaming:GalleryScreen.kt$onPageGeometryChanged</ID>
+    <ID>ParameterNaming:GalleryScreen.kt$onScrolled</ID>
+    <ID>ParameterNaming:MainScaffold.kt$onTabSelected</ID>
+    <ID>ParameterNaming:MediaGrid.kt$onPageGeometryChanged</ID>
+    <ID>ParameterNaming:MediaGrid.kt$onScrolled</ID>
+    <ID>ParameterNaming:MultiVideoWall.kt$onFinished</ID>
+    <ID>ParameterNaming:RecentScreen.kt$onPageGeometryChanged</ID>
+    <ID>ParameterNaming:RecentScreen.kt$onScrolled</ID>
+    <ID>ParameterNaming:SettingsScreen.kt$onToggleAmoled</ID>
+    <ID>ReturnCount:GalleryViewModel.kt$GalleryViewModel$fun isFavouriteItem(item: MediaItem): Boolean</ID>
+    <ID>ReturnCount:GalleryViewModel.kt$GalleryViewModel$fun onTrashPromptResult(confirmed: Boolean)</ID>
+    <ID>ReturnCount:GalleryViewModel.kt$GalleryViewModel$private fun advanceSlideshowAfterVideo()</ID>
+    <ID>ReturnCount:GalleryViewModel.kt$GalleryViewModel$private fun landGridOnViewerItem(v: ViewerUi)</ID>
+    <ID>ReturnCount:GalleryViewModel.kt$GalleryViewModel$private fun maybeWarmNextLaunchPage()</ID>
+    <ID>ReturnCount:GalleryViewModel.kt$GalleryViewModel$private fun migrateSafFavouriteKeys(media: List&lt;MediaItem&gt;)</ID>
+    <ID>ReturnCount:GalleryViewModel.kt$GalleryViewModel$private fun scheduleSlideshow()</ID>
+    <ID>ReturnCount:MediaItem.kt$MediaItem.Companion$fun uriOfSafKey(key: String): String?</ID>
+    <ID>ReturnCount:MediaRepository.kt$MediaRepository$private fun folderPathOf(relativePath: String?, dataPath: String?): String</ID>
+    <ID>ReturnCount:MediaRepository.kt$MediaRepository$private fun matchesSelection(pathLower: String, selectedLower: List&lt;String&gt;): Boolean</ID>
+    <ID>ReturnCount:MediaRepository.kt$MediaRepository$private suspend fun walkSafTree(treeUriStr: String, onFile: (SafEntry) -&gt; Unit)</ID>
+    <ID>ReturnCount:MediaRepository.kt$MediaRepository.Companion$fun folderMatchesSelection(folderPath: String, selectedNormalized: Set&lt;String&gt;): Boolean</ID>
+    <ID>ReturnCount:MediaStoreThumbFetcher.kt$MediaStoreThumbFetcher$override suspend fun fetch(): FetchResult?</ID>
+    <ID>ReturnCount:MediaStoreThumbFetcher.kt$MediaStoreThumbFetcher.Factory$override fun create(data: CoilUri, options: Options, imageLoader: ImageLoader): Fetcher?</ID>
+    <ID>ReturnCount:RandomSample.kt$fun &lt;T&gt; seededMixedSample( regular: List&lt;T&gt;, boosted: List&lt;T&gt;, seed: Long, count: Int, boostedRate: Float, ): List&lt;T&gt;</ID>
+    <ID>ReturnCount:SettingsRepository.kt$SettingsJson$fun merge(base: AppSettings, json: String): AppSettings?</ID>
+    <ID>ReturnCount:SettingsRepository.kt$SettingsRepository$private fun decodeTabHidden( raw: String?, features: TabFeatures, hadExplicitHidden: Boolean, ): Set&lt;AppTab&gt;</ID>
+    <ID>ReturnCount:WallModels.kt$MultiVideoState$fun audible(slot: Int): Boolean</ID>
+    <ID>ReturnCount:WallModels.kt$MultiVideoState$fun withWallSoundToggled(): MultiVideoState</ID>
+    <ID>TooGenericExceptionCaught:FavouritesExporter.kt$FavouritesExporter$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:FavouritesFolderSync.kt$FavouritesFolderSync$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:GalleryViewModel.kt$GalleryViewModel$t: Throwable</ID>
+    <ID>TooManyFunctions:FullscreenViewer.kt$com.mousy.windfall.ui.components.FullscreenViewer.kt</ID>
+    <ID>TooManyFunctions:GalleryViewModel.kt$GalleryViewModel : AndroidViewModel</ID>
+    <ID>TooManyFunctions:MediaRepository.kt$MediaRepository</ID>
+    <ID>TooManyFunctions:MultiVideoViewModel.kt$MultiVideoViewModel : AndroidViewModel</ID>
+    <ID>TooManyFunctions:MultiVideoWall.kt$com.mousy.windfall.multivideo.MultiVideoWall.kt</ID>
+    <ID>TooManyFunctions:SettingsRepository.kt$SettingsRepository</ID>
+    <ID>TooManyFunctions:SettingsScreen.kt$com.mousy.windfall.ui.screens.SettingsScreen.kt</ID>
+    <ID>TooManyFunctions:WallPlayers.kt$WallPlayers</ID>
+    <ID>ViewModelForwarding:GalleryApp.kt$MultiVideoSetupScreen(viewModel = multiVideo)</ID>
+    <ID>ViewModelForwarding:GalleryApp.kt$MultiVideoWall(viewModel = multiVideo)</ID>
+  </CurrentIssues>
+</SmellBaseline>
