@@ -15,8 +15,8 @@ android {
         minSdk = 30
         targetSdk = 36
         // Raise both with every build that leaves this laptop (phone installs, GitHub releases).
-        versionCode = 6
-        versionName = "1.4.0"
+        versionCode = 9
+        versionName = "1.5.0"
 
         vectorDrawables {
             useSupportLibrary = true

@@ -1,5 +1,6 @@
 package com.mousy.windfall.ui.components
 
+import androidx.compose.ui.unit.Density
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -59,5 +60,31 @@ class ThumbSpecTest {
     @Test
     fun `grid and viewer name the same cached thumbnail`() {
         assertEquals("12_content://x_t256", ThumbSpec.thumbKey("12_content://x", 256))
+    }
+
+    @Test
+    fun `phones keep the old column rule`() {
+        // Portrait phone (393 dp wide) and landscape phone (850 dp wide, 393 dp short side).
+        assertEquals(3, ThumbSpec.effectiveColumns(3, landscape = false, widthDp = 393, smallestWidthDp = 393))
+        assertEquals(5, ThumbSpec.effectiveColumns(3, landscape = true, widthDp = 850, smallestWidthDp = 393))
+        assertEquals(8, ThumbSpec.effectiveColumns(6, landscape = true, widthDp = 850, smallestWidthDp = 393))
+    }
+
+    @Test
+    fun `large screens get more columns as they get wider`() {
+        assertEquals(4, ThumbSpec.effectiveColumns(3, landscape = false, widthDp = 800, smallestWidthDp = 800))
+        assertEquals(6, ThumbSpec.effectiveColumns(3, landscape = true, widthDp = 1280, smallestWidthDp = 800))
+        assertEquals(12, ThumbSpec.effectiveColumns(6, landscape = true, widthDp = 2560, smallestWidthDp = 1400))
+        // One column stays possible for a narrow tablet window.
+        assertEquals(1, ThumbSpec.effectiveColumns(1, landscape = false, widthDp = 600, smallestWidthDp = 600))
+    }
+
+    @Test
+    fun `large screens size thumbnails for the real cell width`() {
+        val density = Density(2f)
+        // 1280 dp / 6 columns = 213 dp = 427 px, so the 512 bucket (a phone row would give 192).
+        assertEquals(512, ThumbSpec.gridBucket(3, true, density, widthDp = 1280, smallestWidthDp = 800))
+        // A phone is unchanged: 360 dp / 3 = 120 dp = 240 px.
+        assertEquals(256, ThumbSpec.gridBucket(3, false, density, widthDp = 393, smallestWidthDp = 393))
     }
 }

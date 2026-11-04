@@ -144,15 +144,20 @@ fun MediaGrid(
     onPageGeometryChanged: (Int, Int) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
-    val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-    // Landscape: denser columns so more than ~one row is visible.
-    val cols = remember(columns, landscape) { ThumbSpec.effectiveColumns(columns, landscape) }
+    val configuration = LocalConfiguration.current
+    val landscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val widthDp = configuration.screenWidthDp
+    val smallestWidthDp = configuration.smallestScreenWidthDp
+    // Landscape and wide screens: denser columns so more than ~one row is visible.
+    val cols = remember(columns, landscape, widthDp, smallestWidthDp) {
+        ThumbSpec.effectiveColumns(columns, landscape, widthDp, smallestWidthDp)
+    }
     // Read live inside the long-lived pinch handler without restarting it.
     val currentColumns by rememberUpdatedState(columns)
     val setColumns by rememberUpdatedState(onSetColumns)
     val density = LocalDensity.current
-    val thumbPx = remember(columns, landscape, density) {
-        ThumbSpec.gridBucket(columns, landscape, density)
+    val thumbPx = remember(columns, landscape, density, widthDp, smallestWidthDp) {
+        ThumbSpec.gridBucket(columns, landscape, density, widthDp, smallestWidthDp)
     }
 
     // Pinch with 2+ fingers only — does not consume single-finger scroll/swipe.
@@ -477,6 +482,12 @@ private fun SwipePagedGrid(
     Box(
         modifier = modifier
             .clipToBounds()
+            // Mouse wheel or trackpad: one page per scroll. Not during a settle, as for a drag.
+            .onWheelTurn { direction ->
+                val idle = !commitInFlight && settleJob?.isActive != true
+                val hasPage = if (direction > 0) hasNext else hasPrev
+                if (idle && hasPage) latestShuffle(direction)
+            }
             .pointerInput(hapticsEnabled) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)

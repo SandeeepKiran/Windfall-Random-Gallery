@@ -102,6 +102,20 @@ becomes a random set drawn from its date window.
 | Swipe up / down | Viewer | Next / previous item. On a video only a quick swipe does this; a slower drag sets brightness (left half) or volume (right half) |
 | Swipe up | Viewer, with "swipe up to delete" on | Move to Android's trash after Android's confirmation (instead of the next item) |
 
+### Tablets, Chromebooks and keyboard + mouse
+
+- On a large screen (short side 600 dp or more) the tabs are a short rail at the left edge, not a bottom bar.
+- The grid adds columns as the window gets wider (800 dp: 1 more, 1280 dp: 3 more). Pinch still sets the base count. Phones are unchanged.
+- Touch is optional (`android.hardware.touchscreen` not required), so the Play Store also offers the app to Chromebooks.
+
+| Input | Where | Action |
+|-------|-------|--------|
+| Arrow keys, Page Up / Page Down | Grid (swipe mode) | Previous / next page |
+| Arrow keys, Page Up / Page Down | Viewer | Previous / next item |
+| Space | Viewer | Play / pause the video, or the slideshow |
+| Mouse wheel, two-finger trackpad scroll | Grid (swipe mode) and viewer | One page or item per scroll |
+| Esc | Anywhere | Back (Android turns Esc into Back) |
+
 ### Multi-Video (the video wall)
 
 Several videos at once, like tiling windows: the screen is split into equal tiles with no gaps,

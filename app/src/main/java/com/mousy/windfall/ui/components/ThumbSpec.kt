@@ -15,17 +15,46 @@ import kotlin.math.roundToInt
 object ThumbSpec {
     private val buckets = intArrayOf(128, 192, 256, 384, 512)
 
-    /** Landscape packs in more columns, so cells (and their thumbnails) get smaller. */
-    fun effectiveColumns(columns: Int, landscape: Boolean): Int {
+    /** A window this wide on its short side is a tablet, a Chromebook or a desktop window. */
+    const val LARGE_SCREEN_MIN_DP = 600
+
+    /** Wide windows: one more column for each step of this many dp above [WIDE_BASE_DP]. */
+    private const val WIDE_STEP_DP = 200
+    private const val WIDE_BASE_DP = 600
+    private const val WIDE_MAX_COLUMNS = 12
+
+    /** Phones: the row width that thumbnails are sized for (as before tablet support). */
+    private const val PHONE_ROW_DP = 360
+
+    fun isLargeScreen(smallestWidthDp: Int): Boolean = smallestWidthDp >= LARGE_SCREEN_MIN_DP
+
+    /**
+     * Columns on screen for the user's [columns] setting. On a phone, landscape packs in more
+     * columns, so cells (and their thumbnails) get smaller. On a large screen, the count grows
+     * with the window width: 800 dp gets 1 more, 1280 dp gets 3 more. Phones keep the old rule.
+     */
+    fun effectiveColumns(columns: Int, landscape: Boolean, widthDp: Int = 0, smallestWidthDp: Int = 0): Int {
         val base = columns.coerceIn(1, 6)
+        if (isLargeScreen(smallestWidthDp)) {
+            val extra = ((widthDp - WIDE_BASE_DP) / WIDE_STEP_DP).coerceAtLeast(0)
+            return (base + extra).coerceIn(1, WIDE_MAX_COLUMNS)
+        }
         return if (landscape) (base + 2).coerceIn(3, 8) else base
     }
 
     fun bucketFor(px: Int): Int = buckets.firstOrNull { px <= it } ?: buckets.last()
 
-    fun gridBucket(columns: Int, landscape: Boolean, density: Density): Int {
-        val cols = effectiveColumns(columns, landscape)
-        val px = with(density) { ((360.dp / cols).coerceIn(96.dp, 400.dp)).roundToPx() }
+    fun gridBucket(
+        columns: Int,
+        landscape: Boolean,
+        density: Density,
+        widthDp: Int = 0,
+        smallestWidthDp: Int = 0,
+    ): Int {
+        val cols = effectiveColumns(columns, landscape, widthDp, smallestWidthDp)
+        // Large screens have wider cells: size for the real row, or thumbnails look soft.
+        val rowDp = if (isLargeScreen(smallestWidthDp)) widthDp else PHONE_ROW_DP
+        val px = with(density) { ((rowDp.dp / cols).coerceIn(96.dp, 400.dp)).roundToPx() }
         return bucketFor(px)
     }
 

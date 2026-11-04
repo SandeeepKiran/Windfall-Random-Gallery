@@ -229,3 +229,35 @@ or another app, not by random download file names. Controls that hide after abou
       both hearts back). Not verified: rotation (the emulator ignored rotation commands),
       photo/GIF/audio pages, swipe-to-delete and Undo, zip import on an SD card.
 - [x] Version 1.4.0 (versionCode 6). Unit tests 90/90 (12 new); lint has no errors; detekt passes.
+
+# Version 1.5.0 — Oct 21, 2026
+
+- [x] **Black or blinking video after a swipe, again (the 1.4.0 fix did not work on the test phone).** Not in 1.3.0.
+      Three ways to make the pages slide up/down all failed on the phone: 1.3.1 `graphicsLayer`, 1.4.0
+      `Modifier.layout`, and a 1.4.1 test build (debug only) with a still-picture cover that never moved the video.
+      The cover result showed that the slide was not the cause. Owner decision: up/down swipes use the 1.3.0 page
+      turn again (`animateScrollToPage`, sideways motion); no up/down slide. The viewer page code is the 1.3.0 code
+      plus the 1.4.0 screen-on, mute-before-play and playing-callback additions. Three fixes for causes that came
+      with 1.4.0:
+      1. Screen-on flapping. A swipe stops the old video and starts the new one, so `View.keepScreenOn` went off
+         and on again. Each change makes Android lay out the whole window again, at the time the new video surface
+         starts. The flag now goes on at once but goes off only after 3 s with no video playing (`SCREEN_ON_RELEASE_MS`).
+      2. Media3 1.10.1 → 1.11.1. 1.11.0 fixes "first frame rendering at the wrong size when ContentFrame is
+         recomposed mid-playback" (androidx/media #3238). The 1.4.0 screen-on callback recomposes the player
+         exactly when a video starts.
+      3. The blink. When a page settled, the still picture changed to the player, and ContentFrame showed its black
+         shutter until the first frame. The shutter is now the same still picture (same cache key).
+      Emulator (Pixel 6 image, generated videos), brightness of the picture area every ~0.3 s after a swipe:
+      v1.3.0 went black in 2 of 3 up-swipes; 1.5.0 never went black in 3 up, 1 down and 2 sideways swipes.
+      The emulator never showed the "black until a tap" case, in any version. Status: waiting for the test phone.
+- [x] **Tablets and Chromebooks.** Large screens (`smallestScreenWidthDp` ≥ 600) show the tabs on a short side rail
+      (`SideTabRail`), not the bottom bar. The grid adds a column for each 200 dp of width above 600 dp
+      (`ThumbSpec.effectiveColumns`), and wide-screen thumbnails are sized for the real cell width; phones keep
+      the old rule (3 new unit tests). Touch is optional in the manifest (Play lists the app for Chromebooks).
+      Windows-on-ARM laptops cannot run Android apps (Microsoft ended its Android subsystem in March 2025).
+- [x] **Keyboard and mouse** (`LargeScreenInput.kt`): arrow keys and Page Up/Down turn grid pages (swipe mode) and
+      viewer items; Space plays or pauses the video (the video page holds the focus) or the slideshow; the mouse wheel
+      or a two-finger trackpad scroll turns one page or item per scroll burst (`WHEEL_QUIET_MS`). Esc already works
+      as Back. Checked on the emulator at 2560 × 1600 / 320 dpi: rail shown, 6 columns, Right, Page Down, Up and the
+      wheel each moved one item.
+- [x] Version 1.5.0 (versionCode 9). 1.4.1 and 1.4.2 were test builds only (never released). Unit tests 96/96; detekt passes.

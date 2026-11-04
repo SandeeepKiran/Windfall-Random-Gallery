@@ -10,7 +10,7 @@ Rules and map for AI coding agents in this repo. Read this file first. It overri
 - Kotlin + Jetpack Compose + Material 3. Single module app `:app` plus `:baselineprofile`.
 - Package / applicationId: `com.mousy.windfall`. Debug builds: `com.mousy.windfall.debug`
   ("Windfall Gallery Debug").
-- Current version: **1.4.0 (versionCode 6)**, in `app/build.gradle.kts`.
+- Current version: **1.5.0 (versionCode 9)**, in `app/build.gradle.kts`.
 - minSdk 30 (Android 11), compile/target SDK 36, JVM target 17. Versions: `gradle/libs.versions.toml`.
 - Public repo, MIT license, single contributor.
 
@@ -36,7 +36,8 @@ Rules and map for AI coding agents in this repo. Read this file first. It overri
 | Debug build | `.\gradlew.bat assembleDebug` → `app\build\outputs\apk\debug\app-debug.apk` |
 | Clean debug build | `.\gradlew.bat clean assembleDebug` |
 | Lint | `.\gradlew.bat :app:lintDebug` |
-| Detekt (Kotlin + Compose static analysis) | `.\gradlew.bat :app:detekt` → `appuildeports\detekt\detekt.html` |
+| Detekt (Kotlin + Compose static analysis) | `.\gradlew.bat :app:detekt` → `appuild
+eports\detekt\detekt.html` |
 | Release build | `.\gradlew.bat assembleRelease` → `app\build\outputs\apk\release\app-release.apk` |
 | Build + install debug (one device attached) | `.\gradlew.bat installDebug` |
 | Install an APK | `adb -s <serial> install -r <apk>` |
@@ -47,7 +48,7 @@ Rules and map for AI coding agents in this repo. Read this file first. It overri
 - Use the Gradle wrapper (Gradle 8.14.5). Do not use a global Gradle.
 - If more than one device is connected, pass `-s <serial>` to every `adb` command.
 - `adb` lives in the SDK `platform-tools` folder if it is not on PATH.
-- Unit tests: **78** JUnit 4 tests in `app/src/test/java/com/mousy/windfall/` (8 files; 25 in
+- Unit tests: **96** JUnit 4 tests in `app/src/test/java/com/mousy/windfall/` (10 files; 25 in
   `multivideo/WallModelsTest.kt`). Keep them green. Add a test when you change shuffling, paging,
   thumbnail sizing, settings import/export or Multi-Video rules.
 - Without the signing properties, `assembleRelease` produces an **unsigned** APK. That is expected locally.
@@ -176,9 +177,15 @@ No Room, no networking, no DI framework, no Navigation library (tabs = `AppTab` 
 - Do not change `applicationId`. It stays `com.mousy.windfall` even after the display-name rename.
 - Do not add `navigation-compose`. It was removed on purpose.
 - Multi-Video tiles stay TextureViews (SurfaceViews showed a stretched picture after a tile moved). Six videos is the cap (hardware decoders).
-- The viewer's vertical slide moves pages in the placement step (`Modifier.layout`), not with `graphicsLayer`. The viewer video
-  is a SurfaceView, and a SurfaceView does not follow a `graphicsLayer`: the video after an up/down swipe showed a black
-  picture until a tap (fixed in 1.3.2). Keep the SurfaceView (HDR output, less GPU work than a TextureView).
+- An up/down swipe in the viewer uses the normal sideways page turn (`animateScrollToPage`), as in 1.3.0. Do not make the
+  pages slide up/down. 1.3.1, 1.4.0 and a 1.4.1 test build tried three ways; on the test phone the video blinked or stayed
+  black until a tap. Keep the SurfaceView (HDR output, less GPU work than a TextureView).
+- Do not switch `keepScreenOn` off and on during a swipe. It lays out the whole window again while the new video surface
+  starts. The off-switch waits `SCREEN_ON_RELEASE_MS` (1.4.2).
+- The viewer video's ContentFrame shutter is the page's still picture, not black. Keep it: the black shutter was the
+  blink after every swipe (1.5.0). Media3 is 1.11.1 or later for the ContentFrame first-frame fix.
+- Large screens (`ThumbSpec.isLargeScreen`, short side ≥ 600 dp) use the side tab rail and wider-grid column rule.
+  Phones must keep the old rule (`ThumbSpecTest`). Keyboard and mouse input lives in `LargeScreenInput.kt`.
 - Viewer swipe direction is decided at 0.6 × touch slop, before the pager's slop. Do not move it later; the pager then steals slanted swipes.
 - Keep `DEVICE-ONLY` comments when you touch storage, video, pinch or zip/copy code.
 - Do not "fix" comments that explain deliberate design choices.

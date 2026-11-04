@@ -22,6 +22,14 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
+import com.mousy.windfall.ui.components.pageDirection
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -161,10 +169,14 @@ fun GalleryApp(
         onDispose { controller?.show(WindowInsetsCompat.Type.systemBars()) }
     }
 
-    val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val configuration = LocalConfiguration.current
+    val landscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val widthDp = configuration.screenWidthDp
+    val smallestWidthDp = configuration.smallestScreenWidthDp
     val density = LocalDensity.current
-    val gridThumbBucketPx = remember(state.settings.columns, landscape, density) {
-        ThumbSpec.gridBucket(state.settings.columns, landscape, density)
+    // Must match MediaGrid's bucket, so the viewer finds the grid's cached thumbnails.
+    val gridThumbBucketPx = remember(state.settings.columns, landscape, density, widthDp, smallestWidthDp) {
+        ThumbSpec.gridBucket(state.settings.columns, landscape, density, widthDp, smallestWidthDp)
     }
 
     // Source folders are only ever read, so only read access is kept.
@@ -278,15 +290,40 @@ fun GalleryApp(
     }
 
     val hideBottomBar = (state.viewerOpen && !state.viewerChrome) || wall.wallOpen
+    // Large screens show the tabs on a side rail, so nothing sits under the viewer's controls.
+    val sideRail = GalleryTabBar.useSideRail()
     // Animated so the viewer's control bar GLIDES down with the departing tab bar instead of
     // snapping by the bar's height the instant chrome hides. Matches CHROME_ANIM_OUT_MS.
     val viewerControlsPadding by animateDpAsState(
-        targetValue = if (hideBottomBar) 0.dp else GalleryTabBar.Height,
+        targetValue = if (hideBottomBar || sideRail) 0.dp else GalleryTabBar.Height,
         animationSpec = tween(CHROME_ANIM_OUT_MS),
         label = "viewerControlsPad",
     )
 
-    Box(Modifier.fillMaxSize()) {
+    // Keyboard (tablets with a keyboard, Chromebooks): arrow and page keys turn grid pages.
+    // The viewer and the video wall take the keys while they are open.
+    val appFocus = remember { FocusRequester() }
+    LaunchedEffect(state.viewerOpen, wall.wallOpen) {
+        if (!state.viewerOpen && !wall.wallOpen) appFocus.requestFocus()
+    }
+    val gridTab = state.currentTab == AppTab.GALLERY || state.currentTab == AppTab.RECENT ||
+        state.currentTab == AppTab.FAV
+
+    Box(
+        Modifier
+            .fillMaxSize()
+            .focusRequester(appFocus)
+            .focusable()
+            .onKeyEvent { event ->
+                val direction = event.key.pageDirection()
+                val gridShown = gridTab && !state.viewerOpen && !wall.wallOpen
+                if (event.type != KeyEventType.KeyDown || direction == null || !gridShown) {
+                    return@onKeyEvent false
+                }
+                viewModel.onGridSwipe(direction)
+                true
+            },
+    ) {
         MainScaffold(
             currentTab = state.currentTab,
             visibleTabs = state.visibleTabs,
@@ -330,7 +367,10 @@ fun GalleryApp(
                     .fillMaxSize()
                     .windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility)
                     .windowInsetsPadding(WindowInsets.navigationBarsIgnoringVisibility)
-                    .padding(bottom = GalleryTabBar.Height),
+                    .padding(
+                        start = if (sideRail) GalleryTabBar.RailWidth else 0.dp,
+                        bottom = if (sideRail) 0.dp else GalleryTabBar.Height,
+                    ),
             ) {
                 AnimatedContent(
                     targetState = state.currentTab,

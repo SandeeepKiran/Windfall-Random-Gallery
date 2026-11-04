@@ -29,6 +29,15 @@
         tools:node="remove" />
 
     <!--
+        Touch is optional: Chromebooks and tablets with a keyboard and mouse can use the app too
+        (arrow keys, Page Up/Down, Space, the mouse wheel). Without this, the Play Store hides
+        the app from devices that have no touchscreen.
+    -->
+    <uses-feature
+        android:name="android.hardware.touchscreen"
+        android:required="false" />
+
+    <!--
         No backup, on purpose: favourites, settings, folder names and the media index stay on
         this phone (README, "Permissions & privacy"). allowBackup=false stops cloud backup; on
         Android 12+ it does NOT stop device-to-device transfer, which dataExtractionRules does.

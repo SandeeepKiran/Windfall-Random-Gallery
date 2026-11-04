@@ -1,0 +1,5 @@
+1.5.0
+• Fixed: after a swipe, a video could blink or play with a black picture until you tapped.
+• Up/down swipes turn the page like sideways swipes again.
+• Tablets and Chromebooks: tabs on a side rail, more grid columns on wide screens.
+• Keyboard and mouse: arrow keys, Page Up/Down and the mouse wheel change pages; Space plays or pauses.

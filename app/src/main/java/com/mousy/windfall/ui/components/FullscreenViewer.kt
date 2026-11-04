@@ -92,8 +92,15 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -136,7 +143,6 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
@@ -156,8 +162,8 @@ const val CHROME_ANIM_OUT_MS = 150
  */
 private const val VIEWER_DECODE_SCALE = 1.5f
 
-/** Up/down swipe slide length — short so quick swiping keeps up with the finger. */
-private const val VERTICAL_NAV_MS = 220
+/** Time with no video playing before the screen-on flag goes off. Longer than a swipe. */
+private const val SCREEN_ON_RELEASE_MS = 3_000L
 
 /**
  * Fullscreen viewer. Top/bottom chrome is an overlay (fade only) so media stays full-bleed
@@ -217,7 +223,16 @@ fun FullscreenViewer(
     // It sleeps as usual while the user only looks at a photo or a paused video.
     val rootView = LocalView.current
     var playingKey by remember { mutableStateOf<String?>(null) }
-    val keepAwake = slideshowMode || playingKey != null
+    val wantAwake = slideshowMode || playingKey != null
+    // Switch on at once, but wait SCREEN_ON_RELEASE_MS before the flag goes off. A swipe stops
+    // the old video and starts the new one. Each flag change makes Android lay out the whole
+    // window again. A change while the new video surface started made it blink or stay black
+    // until a tap (1.4.0, 1.4.1).
+    var keepAwake by remember { mutableStateOf(wantAwake) }
+    LaunchedEffect(wantAwake) {
+        if (!wantAwake) delay(SCREEN_ON_RELEASE_MS)
+        keepAwake = wantAwake
+    }
     DisposableEffect(keepAwake, rootView) {
         rootView.keepScreenOn = keepAwake
         onDispose { rootView.keepScreenOn = false }
@@ -310,30 +325,27 @@ fun FullscreenViewer(
             }
         }
 
-        // Vertical swipe navigation: down shows the previous media, up the next. The pager still
-        // does the scrolling (so neighbours stay warm), but while [verticalNav] is set each page
-        // turns its sideways travel into up/down travel: up brings the next item in from the
-        // bottom, down brings the previous one in from the top — the motion follows the finger.
+        // Vertical swipe navigation: down shows the previous media, up the next — the same
+        // pager animation as a horizontal swipe, just triggered from the vertical axis.
+        // Do not move the pages up/down (1.3.1 to 1.4.1 tried three ways). On the test phone
+        // the video after the swipe then blinked or showed a black picture until a tap.
         val pagerScope = rememberCoroutineScope()
-        var verticalNav by remember { mutableStateOf(false) }
-        var verticalNavJob by remember { mutableStateOf<Job?>(null) }
         val onSwipeVertical: (Int) -> Unit = { delta ->
-            // A quick second swipe while one is still sliding chains on from where that one
-            // is heading, instead of being dropped — dropping it made fast swiping feel laggy.
-            val from = if (verticalNav) pagerState.targetPage else pagerState.currentPage
-            val target = from + delta
-            if (target in 0 until latestCount && (verticalNav || !pagerState.isScrollInProgress)) {
-                verticalNavJob?.cancel()
-                verticalNav = true
-                verticalNavJob = pagerScope.launch {
-                    try {
-                        pagerState.animateScrollToPage(target, animationSpec = tween(VERTICAL_NAV_MS))
-                    } finally {
-                        // A cancelled slide must not switch the vertical look off under its successor.
-                        if (verticalNavJob == coroutineContext[Job]) verticalNav = false
-                    }
-                }
+            val target = pagerState.currentPage + delta
+            if (target in 0 until latestCount) {
+                pagerScope.launch { pagerState.animateScrollToPage(target) }
             }
+        }
+
+        // Keyboard and mouse (tablets with a keyboard, Chromebooks): arrow and page keys and the
+        // wheel show the next or previous item; Space plays or pauses a slideshow. A video page
+        // takes the focus itself, for Space, and passes the other keys up to here.
+        val viewerFocus = remember { FocusRequester() }
+        val latestSwipeVertical by rememberUpdatedState(onSwipeVertical)
+        val latestItemAt by rememberUpdatedState(itemAt)
+        LaunchedEffect(pagerState.settledPage) {
+            val type = latestItemAt(pagerState.settledPage)?.mediaType
+            if (type != MediaType.VIDEO && type != MediaType.AUDIO) viewerFocus.requestFocus()
         }
 
         HorizontalPager(
@@ -341,81 +353,43 @@ fun FullscreenViewer(
             key = { page -> itemAt(page)?.stableKey ?: page },
             beyondViewportPageCount = 1,
             pageSpacing = 0.dp,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .focusRequester(viewerFocus)
+                .focusable()
+                .onKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                    val direction = event.key.pageDirection()
+                    when {
+                        direction != null -> {
+                            onSwipeVertical(direction)
+                            true
+                        }
+                        event.key == Key.Spacebar && slideshowMode -> {
+                            onTogglePlay()
+                            true
+                        }
+                        else -> false
+                    }
+                }
+                .onWheelTurn { direction -> latestSwipeVertical(direction) },
         ) { page ->
             val pageItem = itemAt(page)
             // Only the settled page owns a player: neighbours render a static frame, so
             // nothing plays audio off-screen and a swipe only ever moves cheap bitmaps.
             val isSettled = pagerState.settledPage == page
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    // Move the page in the placement step, not with a graphicsLayer. A video
-                    // SurfaceView follows placement only. After a graphicsLayer slide, it
-                    // showed a black picture until the next tap (1.3.1 bug).
-                    .layout { measurable, constraints ->
-                        val placeable = measurable.measure(constraints)
-                        layout(placeable.width, placeable.height) {
-                            if (verticalNav) {
-                                // 0 = on screen, +1 = one page to the left, -1 = one to the right.
-                                val pageOffset = (pagerState.currentPage - page) +
-                                    pagerState.currentPageOffsetFraction
-                                placeable.placeRelative(
-                                    x = (pageOffset * placeable.width).roundToInt(), // cancel the sideways slide
-                                    y = (-pageOffset * placeable.height).roundToInt(), // and slide vertically instead
-                                )
-                            } else {
-                                placeable.placeRelative(0, 0)
-                            }
-                        }
-                    },
-            ) {
-                when (pageItem?.mediaType) {
-                    MediaType.VIDEO, MediaType.AUDIO -> when {
-                        isSettled -> MediaPlayerSurface(
-                            item = pageItem,
-                            muted = muted,
-                            loopVideos = loopOverride ?: loopVideos,
-                            onToggleLoop = { loopOverride = !(loopOverride ?: loopVideos) },
-                            playbackSpeed = playbackSpeed,
-                            onSpeedChange = { playbackSpeed = it },
-                            hapticsEnabled = hapticsEnabled,
-                            slideshowMode = slideshowMode,
-                            controlsVisible = chromeVisible,
-                            onToggleChrome = {
-                                onUserInteracted()
-                                onToggleChrome()
-                            },
-                            onSwipeUpDelete = onSwipeUpDelete,
-                            disableSwipeDelete = disableSwipeDelete,
-                            onSwipeVertical = onSwipeVertical,
-                            onToggleMute = onToggleMute,
-                            onTogglePlayLocal = { onUserInteracted() },
-                            onVideoEnded = onVideoEnded,
-                            onPlayingChange = { isPlaying ->
-                                // Keyed by item, so the old page's "stopped" cannot switch the
-                                // screen-on off for the new page.
-                                when {
-                                    isPlaying -> playingKey = pageItem.stableKey
-                                    playingKey == pageItem.stableKey -> playingKey = null
-                                }
-                            },
-                            onSeekInteracted = onUserInteracted,
-                            controlsBottomPadding = controlsBottomPadding,
-                        )
-                        pageItem.mediaType == MediaType.AUDIO ->
-                            AudioArtwork(item = pageItem, modifier = Modifier.fillMaxSize())
-                        else -> VideoFramePage(
-                            item = pageItem,
-                            decodeSize = decodeSize,
-                            gridThumbBucketPx = gridThumbBucketPx,
-                        )
-                    }
-                    null -> Box(modifier = Modifier.fillMaxSize())
-                    else -> ZoomableImageSurface(
+            when (pageItem?.mediaType) {
+                MediaType.VIDEO, MediaType.AUDIO -> when {
+                    isSettled -> MediaPlayerSurface(
                         item = pageItem,
-                        decodeSize = decodeSize,
-                        gridThumbBucketPx = gridThumbBucketPx,
+                        muted = muted,
+                        loopVideos = loopOverride ?: loopVideos,
+                        onToggleLoop = { loopOverride = !(loopOverride ?: loopVideos) },
+                        playbackSpeed = playbackSpeed,
+                        onSpeedChange = { playbackSpeed = it },
+                        hapticsEnabled = hapticsEnabled,
+                        slideshowMode = slideshowMode,
+                        controlsVisible = chromeVisible,
                         onToggleChrome = {
                             onUserInteracted()
                             onToggleChrome()
@@ -423,8 +397,41 @@ fun FullscreenViewer(
                         onSwipeUpDelete = onSwipeUpDelete,
                         disableSwipeDelete = disableSwipeDelete,
                         onSwipeVertical = onSwipeVertical,
+                        onToggleMute = onToggleMute,
+                        onTogglePlayLocal = { onUserInteracted() },
+                        onVideoEnded = onVideoEnded,
+                        onPlayingChange = { isPlaying ->
+                            // Keyed by item, so the old page's "stopped" cannot switch the
+                            // screen-on off for the new page.
+                            when {
+                                isPlaying -> playingKey = pageItem.stableKey
+                                playingKey == pageItem.stableKey -> playingKey = null
+                            }
+                        },
+                        onSeekInteracted = onUserInteracted,
+                        controlsBottomPadding = controlsBottomPadding,
+                    )
+                    pageItem.mediaType == MediaType.AUDIO ->
+                        AudioArtwork(item = pageItem, modifier = Modifier.fillMaxSize())
+                    else -> VideoFramePage(
+                        item = pageItem,
+                        decodeSize = decodeSize,
+                        gridThumbBucketPx = gridThumbBucketPx,
                     )
                 }
+                null -> Box(modifier = Modifier.fillMaxSize())
+                else -> ZoomableImageSurface(
+                    item = pageItem,
+                    decodeSize = decodeSize,
+                    gridThumbBucketPx = gridThumbBucketPx,
+                    onToggleChrome = {
+                        onUserInteracted()
+                        onToggleChrome()
+                    },
+                    onSwipeUpDelete = onSwipeUpDelete,
+                    disableSwipeDelete = disableSwipeDelete,
+                    onSwipeVertical = onSwipeVertical,
+                )
             }
         }
 
@@ -901,9 +908,24 @@ private fun MediaPlayerSurface(
         }
     }
 
+    // Space plays or pauses the video when a keyboard is used. Other keys go up to the viewer.
+    val keyFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { keyFocus.requestFocus() }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .focusRequester(keyFocus)
+            .focusable()
+            .onKeyEvent { event ->
+                val exo = player
+                if (event.type != KeyEventType.KeyDown || event.key != Key.Spacebar || exo == null) {
+                    return@onKeyEvent false
+                }
+                if (exo.isPlaying) exo.pause() else exo.play()
+                onTogglePlayLocal()
+                true
+            }
             .pointerInput(item.stableKey, hapticsEnabled) {
                 // YouTube-style taps: double-tap edges = ±10 s, double-tap centre = play/pause,
                 // hold anywhere = 2× speed while held, single tap = chrome.
@@ -1020,10 +1042,27 @@ private fun MediaPlayerSurface(
             // Audio has no video surface to draw, so the viewer was just black.
             AudioArtwork(item = item, modifier = Modifier.fillMaxSize())
         } else {
+            // Until the first video frame, show the same still picture that the pager showed
+            // (same cache key, so it is already in memory), not the default black cover.
+            // The change from the still picture to the video was a short black blink.
+            val decodeSize = rememberViewerDecodeSize()
+            val stillFrame = remember(item.stableKey, decodeSize) {
+                item.viewerRequest(context, decodeSize, gridThumbBucketPx = 0)
+            }
             ContentFrame(
                 player = player,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit,
+                shutter = {
+                    AsyncImage(
+                        model = stillFrame,
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black),
+                    )
+                },
             )
         }
 
