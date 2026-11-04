@@ -1,0 +1,285 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Windfall brag</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: #0c1626; }
+  body { font-family: "Segoe UI", system-ui, sans-serif; color: #fff; }
+  #stage { position: absolute; inset: 0; overflow: hidden;
+    background: linear-gradient(135deg, #0f766e 0%, #134e4a 42%, #0c1626 100%); }
+  #glow { position: absolute; width: 1400px; height: 1400px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(232,200,119,0.14) 0%, rgba(232,200,119,0) 60%); }
+  .abs { position: absolute; will-change: transform, opacity; }
+  .tile { position: absolute; left: 0; top: 0; background-size: cover; background-position: center;
+    box-shadow: 0 14px 34px rgba(0,0,0,0.38); }
+  .h1 { font-weight: 700; letter-spacing: -1.5px; line-height: 1.04; }
+  .sand { color: #E8C877; }
+  .sub { color: #d5ece8; font-weight: 400; }
+  #phone { left: 0; top: 0; width: 405px; height: 901px; border-radius: 46px; overflow: hidden;
+    background: #0d0d10; box-shadow: 0 40px 90px rgba(0,0,0,0.55), 0 0 0 3px rgba(255,255,255,0.08); }
+  #phone img.screen { position: absolute; left: -1px; top: -1px; width: 407px; height: 903px; }
+  #gridclip { position: absolute; left: 0; overflow: hidden; }
+  .page { position: absolute; left: 0; top: 0; }
+  .ripple { position: absolute; border-radius: 50%; border: 4px solid rgba(255,255,255,0.9); }
+  .finger { position: absolute; width: 74px; height: 74px; border-radius: 50%;
+    background: rgba(255,255,255,0.32); border: 3px solid rgba(255,255,255,0.85);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.35); }
+  #wall { width: 1500px; height: 672px; border-radius: 30px; overflow: hidden; background: #000;
+    box-shadow: 0 40px 90px rgba(0,0,0,0.5); }
+  .quad { position: absolute; width: 750px; height: 336px; overflow: hidden; }
+  .quad img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .pill { display: inline-block; padding: 12px 30px; border-radius: 999px; border: 2px solid rgba(232,200,119,0.6);
+    background: rgba(232,200,119,0.10); color: #f3e3b6; font-size: 34px; font-weight: 600; }
+</style></head>
+<body>
+<div id="stage">
+  <div id="glow" class="abs"></div>
+  <div id="bgTiles"></div>
+
+  <!-- Scene 1: hook text -->
+  <div id="hook" class="abs" style="left:0;top:0;width:1920px;text-align:center">
+    <div id="hookA" class="h1" style="font-size:112px">Forgotten photos,</div>
+    <div id="hookB" class="h1 sand" style="font-size:112px;margin-top:10px">falling back into view.</div>
+  </div>
+
+  <!-- Scene 2: title -->
+  <div id="title" class="abs" style="left:170px;top:300px;width:900px">
+    <img id="icon" src="assets/icon.png" style="width:150px;height:150px;border-radius:34px;box-shadow:0 18px 40px rgba(0,0,0,0.4)">
+    <div id="tName" class="h1" style="font-size:118px;margin-top:34px">Windfall Gallery</div>
+    <div id="tTag" class="sub" style="font-size:60px;margin-top:18px">Your photos, <span class="sand" style="font-weight:700">shuffled.</span></div>
+  </div>
+
+  <!-- Scene 3/4: feature headlines -->
+  <div id="f1" class="abs" style="left:170px;top:380px;width:860px">
+    <div class="h1" style="font-size:92px">Every swipe deals a new <span class="sand">random page.</span></div>
+  </div>
+  <div id="f2" class="abs" style="left:170px;top:360px;width:860px">
+    <div class="h1" style="font-size:92px">Double-tap to <span style="color:#F38282">heart.</span></div>
+    <div id="f2b" class="sub" style="font-size:52px;margin-top:30px;line-height:1.2">Hearted photos come back <span class="sand" style="font-weight:700">more often.</span></div>
+  </div>
+
+  <!-- Phone -->
+  <div id="phone" class="abs">
+    <img class="screen" id="scrGallery" src="assets/phone-gallery.jpg">
+    <div id="gridclip"><div class="page" id="pageA"></div><div class="page" id="pageB"></div></div>
+    <img class="screen" id="scrFav" src="assets/phone-fav.jpg">
+    <div id="ripple1" class="ripple"></div><div id="ripple2" class="ripple"></div>
+    <svg id="bigHeart" class="abs" width="120" height="120" viewBox="0 0 24 24"><path fill="#F38282" stroke="#2a1416" stroke-width="0.6" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+    <div id="finger" class="finger"></div>
+  </div>
+
+  <!-- Flying tiles (hook pile -> phone grid) -->
+  <div id="fly"></div>
+
+  <!-- Scene 5: Multi-Video wall -->
+  <div id="mvText" class="abs" style="left:0;top:80px;width:1920px;text-align:center">
+    <div class="h1" style="font-size:88px">Up to <span class="sand">six videos</span> at once.</div>
+    <div id="mvSub" class="sub" style="font-size:44px;margin-top:14px">Tiled edge to edge, nothing else on screen.</div>
+  </div>
+  <div id="wall" class="abs" style="left:210px;top:330px">
+    <div class="quad" id="q0" style="left:0;top:0"><img src="assets/wall0.jpg"></div>
+    <div class="quad" id="q1" style="left:750px;top:0"><img src="assets/wall1.jpg"></div>
+    <div class="quad" id="q2" style="left:0;top:336px"><img src="assets/wall2.jpg"></div>
+    <div class="quad" id="q3" style="left:750px;top:336px"><img src="assets/wall3.jpg"></div>
+  </div>
+
+  <!-- Scene 6: privacy -->
+  <div id="priv" class="abs" style="left:0;top:250px;width:1920px;text-align:center">
+    <svg id="wifi" width="150" height="150" viewBox="0 0 24 24" style="display:block;margin:0 auto 26px">
+      <g fill="none" stroke="#E8C877" stroke-width="1.8" stroke-linecap="round">
+        <path d="M2.5 9.5a14 14 0 0 1 19 0"/><path d="M5.5 12.8a9.5 9.5 0 0 1 13 0"/><path d="M8.6 16a5 5 0 0 1 6.8 0"/>
+        <circle cx="12" cy="19.3" r="0.9" fill="#E8C877"/>
+        <path id="slash" d="M4 3.5 L20 20.5" stroke="#F38282" stroke-width="2.2"/>
+      </g></svg>
+    <div id="pA" class="h1" style="font-size:118px">No internet permission.</div>
+    <div id="pB" class="sub" style="font-size:58px;margin-top:22px">Your photos never leave your phone.</div>
+    <div id="pC" style="font-size:40px;margin-top:22px;color:#a7d3cc">No accounts, no ads, no tracking.</div>
+  </div>
+
+  <!-- Scene 7: outro -->
+  <div id="outro" class="abs" style="left:0;top:170px;width:1920px;text-align:center">
+    <img id="oIcon" src="assets/icon.png" style="width:170px;height:170px;border-radius:38px;box-shadow:0 18px 44px rgba(0,0,0,0.45)">
+    <div id="oName" class="h1" style="font-size:124px;margin-top:26px">Windfall Gallery</div>
+    <div id="oLine" class="sub" style="font-size:50px;margin-top:10px">Free &amp; open source · Android 11+</div>
+    <div id="oPill" style="margin-top:36px"><span class="pill">New in 1.5.0: tablets, Chromebooks, keyboard &amp; mouse</span></div>
+    <div id="oUrl" style="font-size:34px;margin-top:34px;color:#a7d3cc;letter-spacing:0.5px">github.com/SandeeepKiran/Windfall-Random-Gallery</div>
+  </div>
+</div>
+<script>
+// Every frame is a pure function of time t (seconds). render(t) sets all styles.
+const W = 1920, H = 1080;
+const PS = 405 / 738;                 // phone scale: crop px -> video px
+const PH = { w: 405, h: 901, x: 1290, y: 90 };
+const GRID = { top: 228 * PS, cell: 246 * PS };
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const seg = (t, a, b) => clamp((t - a) / (b - a), 0, 1);
+const eOut = p => 1 - Math.pow(1 - p, 3);
+const eIO = p => p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+const eBack = p => { const c = 1.5; return 1 + (c + 1) * Math.pow(p - 1, 3) + c * Math.pow(p - 1, 2); };
+const lerp = (a, b, p) => a + (b - a) * p;
+const $ = id => document.getElementById(id);
+const set = (el, o, tf) => { el.style.opacity = o; el.style.transform = tf || 'none'; };
+
+// Deterministic pseudo-random numbers.
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+// Pile positions around the hook text (kept out of the text band).
+const pile = [
+  [120, 90, -14], [420, 40, 9], [760, 70, -6], [1110, 40, 12], [1450, 80, -10], [1730, 120, 7],
+  [60, 430, 11], [1770, 470, -12],
+  [150, 800, 8], [480, 860, -9], [820, 820, 5], [1160, 870, -7], [1480, 830, 10], [1760, 800, -5], [1610, 640, 4]
+];
+const TILE = 15;
+const tilesSrc = [...Array(TILE).keys()].map(i => `assets/tile${String(i).padStart(2, '0')}.jpg`);
+const fallStart = pile.map((p, i) => 0.05 + i * 0.075);
+const fallX0 = pile.map(() => (rnd() - 0.5) * 300);
+const spin0 = pile.map(() => (rnd() - 0.5) * 140);
+
+// Pages dealt by the swipe: page 0 = the real screenshot order.
+const perms = [
+  [...Array(TILE).keys()],
+  [9, 3, 13, 0, 7, 12, 5, 14, 1, 10, 4, 8, 2, 11, 6],
+  [6, 11, 1, 8, 14, 2, 10, 0, 12, 4, 13, 7, 3, 9, 5],
+];
+
+function buildPage(el, perm) {
+  el.innerHTML = '';
+  perm.forEach((src, k) => {
+    const d = document.createElement('div');
+    d.className = 'tile';
+    d.style.cssText += `width:${GRID.cell + 0.5}px;height:${GRID.cell + 0.5}px;left:${(k % 3) * GRID.cell}px;top:${Math.floor(k / 3) * GRID.cell}px;background-image:url(${tilesSrc[src]});box-shadow:none`;
+    el.appendChild(d);
+  });
+  el.dataset.perm = perm.join(',');
+}
+
+const fly = $('fly'), bg = $('bgTiles');
+const flyTiles = tilesSrc.map(s => { const d = document.createElement('div'); d.className = 'tile'; d.style.backgroundImage = `url(${s})`; fly.appendChild(d); return d; });
+const bgTiles = [...Array(12).keys()].map(i => { const d = document.createElement('div'); d.className = 'tile'; d.style.backgroundImage = `url(${tilesSrc[(i * 4) % TILE]})`; bg.appendChild(d); return d; });
+const bgParams = bgTiles.map(() => ({ x: rnd() * 1900, sp: 60 + rnd() * 60, ph: rnd() * 1400, r: (rnd() - 0.5) * 50, s: 90 + rnd() * 60 }));
+
+const gc = $('gridclip');
+gc.style.top = GRID.top + 'px'; gc.style.width = 3 * GRID.cell + 'px'; gc.style.height = 5 * GRID.cell + 'px';
+
+function pageFor(idx, el) { const key = perms[idx].join(','); if (el.dataset.perm !== key) buildPage(el, perms[idx]); }
+
+function render(t) {
+  // Background glow drifts slowly.
+  set($('glow'), 1, `translate(${lerp(200, 700, t / 24)}px, ${lerp(-500, -300, t / 24)}px)`);
+
+  // ---- Scene 1: hook (0 - 3.2) ----
+  const hookIn = eOut(seg(t, 0.25, 0.75)), hookBIn = eOut(seg(t, 0.9, 1.4)), hookOut = eIO(seg(t, 3.0, 3.35));
+  $('hook').style.top = '400px';
+  set($('hookA'), hookIn * (1 - hookOut), `translateY(${(1 - hookIn) * 40 - hookOut * 60}px)`);
+  set($('hookB'), hookBIn * (1 - hookOut), `translateY(${(1 - hookBIn) * 40 - hookOut * 60}px)`);
+
+  // Phone position (rises in scene 2, leaves at 14.0).
+  const pIn = eOut(seg(t, 3.25, 4.15)), pOut = eIO(seg(t, 13.95, 14.4));
+  const phY = PH.y + (1 - pIn) * 1100 + pOut * 1150;
+  set($('phone'), t < 3.2 || t > 14.5 ? 0 : 1, `translate(${PH.x}px, ${phY}px)`);
+
+  // Flying tiles: fall into pile, then fly into the phone grid.
+  flyTiles.forEach((d, i) => {
+    const [px, py, pr] = pile[i];
+    const fp = seg(t, fallStart[i], fallStart[i] + 1.1);
+    const sway = Math.sin((t - fallStart[i]) * 5 + i) * 34 * (1 - fp);
+    let x = lerp(px + fallX0[i], px, eOut(fp)) + sway, y = lerp(-320, py, eBack(fp)), r = lerp(pr + spin0[i], pr, eOut(fp)), s = 170;
+    // Idle float while in the pile.
+    y += Math.sin(t * 1.6 + i) * 4 * fp;
+    const gp = eIO(seg(t, 3.35 + i * 0.035, 4.25 + i * 0.035));
+    const k = i; const gx = PH.x + (k % 3) * GRID.cell, gy = phY + GRID.top + Math.floor(k / 3) * GRID.cell;
+    x = lerp(x, gx, gp); y = lerp(y, gy, gp); r = lerp(r, 0, gp); s = lerp(s, GRID.cell + 0.5, gp);
+    d.style.width = d.style.height = s + 'px';
+    d.style.borderRadius = lerp(18, 0, gp) + 'px';
+    d.style.boxShadow = gp >= 1 ? 'none' : '';
+    set(d, t > 4.9 || t < fallStart[i] ? 0 : 1, `translate(${x}px, ${y}px) rotate(${r}deg)`);
+  });
+
+  // Title (3.9 - 7.0).
+  const ti = eOut(seg(t, 3.9, 4.5)), tn = eOut(seg(t, 4.1, 4.7)), tt = eOut(seg(t, 4.45, 5.05)), to = eIO(seg(t, 6.7, 7.05));
+  set($('icon'), ti * (1 - to), `translateY(${(1 - ti) * 40 - to * 50}px) scale(${lerp(0.7, 1, eBack(seg(t, 3.9, 4.5)))})`);
+  set($('tName'), tn * (1 - to), `translateY(${(1 - tn) * 40 - to * 50}px)`);
+  set($('tTag'), tt * (1 - to), `translateY(${(1 - tt) * 40 - to * 50}px)`);
+
+  // ---- Scene 3: swipe re-deal (7.0 - 11.0) ----
+  const f1i = eOut(seg(t, 7.1, 7.6)), f1o = eIO(seg(t, 10.75, 11.05));
+  set($('f1'), f1i * (1 - f1o), `translateY(${(1 - f1i) * 40 - f1o * 50}px)`);
+  const swipes = [8.0, 9.6];
+  let cur = 0, prog = 0, active = -1;
+  swipes.forEach((s0, n) => { if (t >= s0 + 0.5) cur = n + 1; else if (t >= s0) { active = n; prog = eIO(seg(t, s0, s0 + 0.5)); } });
+  const gw = 3 * GRID.cell;
+  if (active >= 0) {
+    pageFor(active, $('pageA')); pageFor(active + 1, $('pageB'));
+    set($('pageA'), 1, `translateX(${-prog * gw}px)`); set($('pageB'), 1, `translateX(${(1 - prog) * gw}px)`);
+  } else {
+    pageFor(cur, $('pageA')); set($('pageA'), 1, 'none'); set($('pageB'), 0, 'none');
+  }
+  $('gridclip').style.opacity = t >= 4.85 ? 1 : 0;
+  // Finger swipes right to left over the grid.
+  let fo = 0, fx = 0, fy = GRID.top + 2.2 * GRID.cell;
+  swipes.forEach(s0 => {
+    const a = seg(t, s0 - 0.3, s0 - 0.1), m = eIO(seg(t, s0 - 0.12, s0 + 0.38)), b = seg(t, s0 + 0.38, s0 + 0.58);
+    if (t > s0 - 0.3 && t < s0 + 0.58) { fo = a * (1 - b); fx = lerp(300, 40, m); }
+  });
+  // Double-tap in scene 4 on tile row 1, col 1.
+  const tapX = 1.5 * GRID.cell, tapY = GRID.top + 1.5 * GRID.cell;
+  const tA = seg(t, 11.45, 11.6), tB = seg(t, 11.95, 12.05);
+  if (t > 11.45 && t < 12.1) { fo = tA * (1 - tB); fx = tapX - 37 + 10; fy = tapY - 37 + 14; }
+  $('finger').style.opacity = fo; $('finger').style.transform = `translate(${fx}px, ${fy}px) scale(${t > 11.6 && t < 11.95 ? (Math.abs(Math.sin((t - 11.6) * 18)) > 0.5 ? 0.88 : 1) : 1})`;
+
+  // ---- Scene 4: heart (11.0 - 14.2) ----
+  const f2i = eOut(seg(t, 11.05, 11.55)), f2bi = eOut(seg(t, 11.6, 12.1)), f2o = eIO(seg(t, 13.95, 14.3));
+  set($('f2'), f2i * (1 - f2o), `translateY(${(1 - f2i) * 40 - f2o * 50}px)`);
+  set($('f2b'), f2bi, `translateY(${(1 - f2bi) * 30}px)`);
+  [['ripple1', 11.62], ['ripple2', 11.8]].forEach(([id, s0]) => {
+    const p = seg(t, s0, s0 + 0.4), sz = lerp(30, 150, eOut(p));
+    const el = $(id); el.style.width = el.style.height = sz + 'px';
+    set(el, p > 0 && p < 1 ? 1 - p : 0, `translate(${tapX - sz / 2}px, ${tapY - sz / 2}px)`);
+  });
+  const hp = seg(t, 11.85, 12.25), hs = seg(t, 12.5, 12.85);
+  const hScale = lerp(eBack(hp) * 1.0, 0.24, eIO(hs));
+  const hx = lerp(tapX - 60, GRID.cell * 2 - 36 - 60 + 14, eIO(hs)), hy = lerp(tapY - 60, GRID.top + GRID.cell + 24 - 60 - 14, eIO(hs));
+  set($('bigHeart'), t > 11.85 && t < 13.1 ? 1 : 0, `translate(${hx}px, ${hy}px) scale(${hScale})`);
+  const fav = eOut(seg(t, 13.0, 13.3));
+  set($('scrFav'), fav, `scale(${lerp(0.97, 1, fav)})`);
+
+  // ---- Scene 5: Multi-Video (14.2 - 17.4) ----
+  const mvi = eOut(seg(t, 14.35, 14.85)), mvs = eOut(seg(t, 14.6, 15.1)), mvo = eIO(seg(t, 17.2, 17.55));
+  set($('mvText'), mvi * (1 - mvo), `translateY(${(1 - mvi) * 40 - mvo * 50}px)`);
+  set($('mvSub'), mvs, `translateY(${(1 - mvs) * 24}px)`);
+  set($('wall'), t > 14.3 && t < 17.7 ? 1 - mvo : 0, `translateY(${mvo * 40}px) scale(${1 - mvo * 0.04})`);
+  $('wall').style.background = 'transparent';
+  [0, 1, 2, 3].forEach(i => {
+    const p = eOut(seg(t, 14.55 + i * 0.2, 15.05 + i * 0.2));
+    const q = $('q' + i);
+    const dx = (i % 2 ? 1 : -1) * 60 * (1 - p), dy = (i < 2 ? -1 : 1) * 40 * (1 - p);
+    set(q, p, `translate(${dx}px, ${dy}px)`);
+    q.firstChild.style.transform = `scale(${1.02 + 0.08 * seg(t, 14.5, 17.6)}) translateX(${(i % 2 ? -1 : 1) * 10 * seg(t, 14.5, 17.6)}px)`;
+  });
+
+  // ---- Scene 6: privacy (17.4 - 20.6) ----
+  const wi = eOut(seg(t, 17.55, 18.0)), sl = eIO(seg(t, 17.85, 18.2)), pa = eOut(seg(t, 17.7, 18.2)), pb = eOut(seg(t, 18.3, 18.8)), pc = eOut(seg(t, 18.9, 19.4)), po = eIO(seg(t, 20.35, 20.7));
+  set($('wifi'), wi * (1 - po), `scale(${lerp(0.7, 1, eBack(seg(t, 17.55, 18.0)))})`);
+  $('slash').style.strokeDasharray = 24; $('slash').style.strokeDashoffset = 24 * (1 - sl);
+  set($('pA'), pa * (1 - po), `translateY(${(1 - pa) * 40 - po * 50}px)`);
+  set($('pB'), pb * (1 - po), `translateY(${(1 - pb) * 30 - po * 50}px)`);
+  set($('pC'), pc * (1 - po), `translateY(${(1 - pc) * 24 - po * 50}px)`);
+
+  // ---- Scene 7: outro (20.6 - 24.0) + drifting background tiles ----
+  const o = [20.7, 20.85, 21.1, 21.35, 21.55].map(s0 => eOut(seg(t, s0, s0 + 0.5)));
+  set($('oIcon'), o[0], `scale(${lerp(0.6, 1, eBack(seg(t, 20.7, 21.2)))})`);
+  set($('oName'), o[1], `translateY(${(1 - o[1]) * 40}px)`);
+  set($('oLine'), o[2], `translateY(${(1 - o[2]) * 30}px)`);
+  set($('oPill'), o[3], `translateY(${(1 - o[3]) * 30}px)`);
+  set($('oUrl'), o[4], `translateY(${(1 - o[4]) * 24}px)`);
+  const bgo = eOut(seg(t, 20.5, 21.3)) * 0.22;
+  bgTiles.forEach((d, i) => {
+    const p = bgParams[i]; const y = ((t * p.sp + p.ph) % 1400) - 250;
+    d.style.width = d.style.height = p.s + 'px'; d.style.borderRadius = '14px';
+    set(d, bgo, `translate(${p.x + Math.sin(t + i) * 30}px, ${y}px) rotate(${p.r + t * 8}deg)`);
+  });
+}
+window.render = render;
+window.ready = Promise.all([document.fonts.ready, ...[...document.images].map(i => i.complete ? 1 : new Promise(r => { i.onload = r; i.onerror = r; }))])
+  .then(() => Promise.all(tilesSrc.map(s => new Promise(r => { const im = new Image(); im.onload = r; im.onerror = r; im.src = s; })))).then(() => { render(0); return true; });
+</script>
+</body></html>
