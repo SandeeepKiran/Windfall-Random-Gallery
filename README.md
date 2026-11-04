@@ -11,7 +11,7 @@ Built with **Kotlin**, **Jetpack Compose**, and **Material 3**. Runs on **Androi
 | **Min SDK** | 30 (Android 11) |
 | **Target / Compile SDK** | 36 (Android 16) |
 | **UI** | Jetpack Compose + Material 3 |
-| **License** | [MIT](LICENSE) |
+| **License** | [AGPL-3.0-or-later](LICENSE) |
 
 > **Design source of truth:** the interactive wireframe in [`Design_Files/`](Design_Files/) defines screens, navigation, gestures, settings, and visual tokens. This app ports that spec to native Android.
 
@@ -657,6 +657,6 @@ Issues and ideas welcome via GitHub Issues.
 
 ## License & author
 
-**MIT** — see [LICENSE](LICENSE).
+**AGPL-3.0-or-later** — see [LICENSE](LICENSE). Versions up to 1.5.0 were released under MIT.
 
 **Sandeep Kiran (Mousy)** — Made with ❤️ for random media discovery.

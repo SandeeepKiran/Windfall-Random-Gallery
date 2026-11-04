@@ -12,7 +12,7 @@ Rules and map for AI coding agents in this repo. Read this file first. It overri
   ("Windfall Gallery Debug").
 - Current version: **1.5.0 (versionCode 9)**, in `app/build.gradle.kts`.
 - minSdk 30 (Android 11), compile/target SDK 36, JVM target 17. Versions: `gradle/libs.versions.toml`.
-- Public repo, MIT license, single contributor.
+- Public repo, AGPL-3.0-or-later license (MIT up to 1.5.0), single contributor.
 
 ## 2. Read first
 

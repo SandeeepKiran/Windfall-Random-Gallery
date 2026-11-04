@@ -14,5 +14,5 @@ Windfall Gallery is a gallery for random discovery of your own photos and videos
 Private by design
 Windfall Gallery has no internet permission: it cannot go online, and your photos never leave your phone. No accounts, no ads, no tracking.
 
-Free and open source (MIT licence):
+Free and open source (AGPL-3.0 licence):
 https://github.com/SandeeepKiran/Windfall-Random-Gallery
