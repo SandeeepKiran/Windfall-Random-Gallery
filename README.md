@@ -40,9 +40,9 @@ Built with **Kotlin**, **Jetpack Compose**, and **Material 3**. Runs on **Androi
 
 ## Screenshots
 
-[![Windfall Gallery launch video: your photos, shuffled](docs/media/windfall-launch.gif)](docs/media/windfall-launch.mp4)
+[![Windfall Gallery launch video: your photos, shuffled](brag-output/brag.gif)](brag-output/brag.mp4)
 
-*The 23-second launch video. [Watch it in full quality, with sound (MP4)](docs/media/windfall-launch.mp4).*
+*The 24-second launch video (1.5.0). [Watch it in full quality, with sound (MP4)](brag-output/brag.mp4). Poster: [brag.jpg](brag-output/brag.jpg). The earlier video is kept at [docs/media/windfall-launch.mp4](docs/media/windfall-launch.mp4).*
 
 <p>
   <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.jpg" width="31%" alt="Gallery: your photos, shuffled">
